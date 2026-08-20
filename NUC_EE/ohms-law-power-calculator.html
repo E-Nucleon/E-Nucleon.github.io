@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>欧姆定律与功率计算器</title>
+    <style>
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-tertiary: #2d2d30;
+            --bg-elevated: #333335;
+            --border-color: #3c3c3c;
+            --text-primary: #d4d4d4;
+            --text-secondary: #9a9a9a;
+            --text-muted: #6a6a6a;
+            --accent-orange: #ff7b00;
+            --accent-cyan: #4fc1ff;
+            --accent-red: #f14c4c;
+            --accent-green: #4ec9b0;
+            --accent-blue: #569cd6;
+            --accent-yellow: #e6b800;
+        }
+        body { font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; background-color: var(--bg-primary); margin: 0; padding: 20px; color: var(--text-primary); min-height: 100vh; }
+        .container { max-width: 1000px; margin: 0 auto; background: var(--bg-secondary); padding: 30px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); border: 1px solid var(--border-color); }
+        h1 { text-align: center; color: var(--accent-cyan); font-size: 24px; margin-bottom: 14px; font-weight: 600; letter-spacing: 0.5px; }
+        .back-btn { position: fixed; top: 16px; left: 16px; z-index: 100; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); font-size: 13px; font-weight: bold; text-decoration: none; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); transition: all 0.2s; }
+        .back-btn:hover { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #1a1a1a; }
+
+        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 22px; padding: 20px; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color); }
+        .control-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 13px; color: var(--text-secondary); }
+        .control-group .value-row { display: flex; align-items: center; margin-bottom: 4px; }
+        .val-input { width: 80px; font-family: inherit; font-weight: bold; font-size: 15px; text-align: center; color: var(--accent-cyan); background: var(--bg-primary); border: 1px solid var(--border-color); padding: 4px 8px; transition: border-color 0.2s, box-shadow 0.2s; border-radius: 0; }
+        .val-input:focus { outline: none; border-color: var(--accent-cyan); box-shadow: 0 0 0 2px rgba(79, 193, 255, 0.25); z-index: 1; position: relative; }
+        .val-input::-webkit-outer-spin-button, .val-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .val-input { -moz-appearance: textfield; }
+        .val-input[readonly] { opacity: 0.55; cursor: default; }
+        .unit-select { margin-left: 6px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-family: inherit; font-weight: bold; font-size: 13px; padding: 5px 6px; border-radius: 4px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+        .unit-select:hover, .unit-select:focus { outline: none; border-color: var(--accent-cyan); color: var(--accent-cyan); }
+
+        .control-group .known-chk { display: inline-flex; align-items: center; gap: 5px; margin-bottom: 0; margin-right: 14px; font-size: 13px; font-weight: bold; color: var(--text-secondary); cursor: pointer; user-select: none; white-space: nowrap; }
+        .control-group .known-chk:hover { color: var(--accent-cyan); }
+        .known-chk input[type="checkbox"] { width: 15px; height: 15px; margin: 0; accent-color: var(--accent-cyan); cursor: pointer; }
+
+        .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 18px; }
+        .metric-card { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: transform 0.2s, box-shadow 0.2s; }
+        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .metric-card.tau { border-top: 4px solid var(--accent-blue); background: linear-gradient(180deg, rgba(86, 156, 214, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.thresh { border-top: 4px solid var(--accent-orange); background: linear-gradient(180deg, rgba(255, 123, 0, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.full { border-top: 4px solid var(--accent-green); background: linear-gradient(180deg, rgba(78, 201, 176, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-title { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; font-weight: bold; }
+        .metric-value { font-size: 24px; font-weight: 900; }
+        .metric-sub { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+
+        canvas { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; width: 100%; box-shadow: inset 0 0 20px rgba(0,0,0,0.3); margin-bottom: 20px; }
+        .btn-export { display: block; width: 280px; margin: 0 auto; padding: 12px 20px; background-color: var(--accent-cyan); color: #1a1a1a; text-align: center; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+        .btn-export:hover { background-color: #7ad4ff; box-shadow: 0 4px 12px rgba(79, 193, 255, 0.4); }
+
+        .warn-box { display: none; margin-top: 14px; padding: 10px 14px; background: rgba(230,184,0,0.10); border: 1px solid var(--accent-yellow); border-radius: 6px; color: var(--accent-yellow); font-size: 13px; line-height: 1.7; }
+        .warn-box.red { background: rgba(241,76,76,0.10); border-color: var(--accent-red); color: var(--accent-red); }
+        .warn-box.green { background: rgba(78,201,176,0.10); border-color: var(--accent-green); color: var(--accent-green); }
+        .warn-box.flash { background: rgba(79,193,255,0.12); border-color: var(--accent-cyan); color: var(--accent-cyan); }
+        .note { font-size: 12px; color: var(--text-muted); line-height: 1.7; margin-top: 4px; }
+    </style>
+</head>
+<body>
+<a class="back-btn" href="index.html" title="返回工具索引">&#8592; 返回目录</a>
+<div class="container">
+    <h1>&#9889; 欧姆定律与功率计算器</h1>
+
+    <div class="controls-grid" style="grid-template-columns: 1fr;">
+        <div class="control-group">
+            <label for="valV">电压 V</label>
+            <div class="value-row">
+                <label class="known-chk" for="chkV"><input type="checkbox" id="chkV" checked> 已知</label>
+                <input type="number" id="valV" class="val-input" step="any" value="5">
+                <select class="unit-select" id="unitV">
+                    <option value="0">mV</option>
+                    <option value="1" selected>V</option>
+                </select>
+            </div>
+        </div>
+        <div class="control-group">
+            <label for="valI">电流 I</label>
+            <div class="value-row">
+                <label class="known-chk" for="chkI"><input type="checkbox" id="chkI" checked> 已知</label>
+                <input type="number" id="valI" class="val-input" step="any" value="100">
+                <select class="unit-select" id="unitI">
+                    <option value="0">&mu;A</option>
+                    <option value="1" selected>mA</option>
+                    <option value="2">A</option>
+                </select>
+            </div>
+        </div>
+        <div class="control-group">
+            <label for="valR">电阻 R</label>
+            <div class="value-row">
+                <label class="known-chk" for="chkR"><input type="checkbox" id="chkR"> 已知</label>
+                <input type="number" id="valR" class="val-input" step="any" readonly placeholder="--">
+                <select class="unit-select" id="unitR">
+                    <option value="0" selected>&Omega;</option>
+                    <option value="1">k&Omega;</option>
+                    <option value="2">M&Omega;</option>
+                </select>
+            </div>
+        </div>
+        <div class="control-group">
+            <label for="valP">功率 P</label>
+            <div class="value-row">
+                <label class="known-chk" for="chkP"><input type="checkbox" id="chkP"> 已知</label>
+                <input type="number" id="valP" class="val-input" step="any" readonly placeholder="--">
+                <select class="unit-select" id="unitP">
+                    <option value="0">mW</option>
+                    <option value="1" selected>W</option>
+                </select>
+            </div>
+        </div>
+    </div>
+    <div class="warn-box" id="warnBox"></div>
+    <div class="note">欧姆定律 V = I&middot;R，功率 P = V&middot;I = I&sup2;&middot;R = V&sup2;/R。勾选任意两个已知量并输入数值，另外两个量实时求解；切换单位不改变物理量大小；已知量始终保持恰好两个。</div>
+
+    <div class="dashboard">
+        <div class="metric-card tau">
+            <div class="metric-title" id="t1">电阻 R</div>
+            <div class="metric-value" id="v1" style="color:#569cd6;">--</div>
+            <div class="metric-sub" id="s1">--</div>
+        </div>
+        <div class="metric-card thresh">
+            <div class="metric-title" id="t2">功率 P</div>
+            <div class="metric-value" id="v2" style="color:#ff7b00;">--</div>
+            <div class="metric-sub" id="s2">--</div>
+        </div>
+        <div class="metric-card full">
+            <div class="metric-title" id="t3">公式验算</div>
+            <div class="metric-value" id="v3" style="color:#4ec9b0; font-size:16px; line-height:32px;">--</div>
+            <div class="metric-sub" id="s3">--</div>
+        </div>
+    </div>
+
+    <canvas id="chartCanvas" width="900" height="420"></canvas>
+
+    <button class="btn-export" onclick="exportCSV()">导出电压-电流-功率曲线 (CSV)</button>
+</div>
+
+<script>
+    const UNIT_FACTORS = {
+        v: [0.001, 1],          // mV, V
+        i: [1e-6, 0.001, 1],    // μA, mA, A
+        r: [1, 1e3, 1e6],       // Ω, kΩ, MΩ
+        p: [0.001, 1]           // mW, W
+    };
+    const QUANT = ['v', 'i', 'r', 'p'];
+    const AMP_UNITS = [{ min: 1, f: 1, u: 'A' }, { min: 1e-3, f: 1e3, u: 'mA' }, { min: -Infinity, f: 1e6, u: 'μA' }];
+    const VLT_UNITS = [{ min: 1, f: 1, u: 'V' }, { min: -Infinity, f: 1e3, u: 'mV' }];
+    const PWR_UNITS = [{ min: 1, f: 1, u: 'W' }, { min: -Infinity, f: 1e3, u: 'mW' }];
+
+    const state = {
+        known: ['v', 'i'],                          // 已知量（始终恰好两个）
+        si: { v: 5, i: 0.1, r: NaN, p: NaN },       // 全部以 SI 单位存储
+        valid: false
+    };
+
+    const canvas = document.getElementById('chartCanvas');
+    const ctx = canvas.getContext('2d');
+
+    let flashMsg = '';
+    let flashTimer = null;
+
+    // ================= 格式化 =================
+    function formatDisplay(v) { return parseFloat(v.toPrecision(6)).toString(); }
+    function unitPick(absMax, list) {
+        for (let k = 0; k < list.length; k++) if (absMax >= list[k].min) return list[k];
+        return list[list.length - 1];
+    }
+    function fmtWithUnits(x, list) {
+        if (!isFinite(x)) return '--';
+        const u = unitPick(Math.abs(x), list);
+        return parseFloat((x * u.f).toPrecision(4)) + ' ' + u.u;
+    }
+    function fmtAmp(x) { return fmtWithUnits(x, AMP_UNITS); }
+    function fmtVolt(x) { return fmtWithUnits(x, VLT_UNITS); }
+    function fmtPower(x) { return fmtWithUnits(x, PWR_UNITS); }
+    function fmtTick(x, u) { return parseFloat((x * u.f).toPrecision(3)) + ' ' + u.u; }
+    function fmtOhm(r) {
+        if (!isFinite(r)) return '--';
+        const a = Math.abs(r);
+        if (a >= 1e6) return parseFloat((r / 1e6).toPrecision(4)) + ' MΩ';
+        if (a >= 1e3) return parseFloat((r / 1e3).toPrecision(4)) + ' kΩ';
+        if (a >= 1) return parseFloat(r.toPrecision(4)) + ' Ω';
+        if (a > 0) return parseFloat((r * 1e3).toPrecision(4)) + ' mΩ';
+        return '0 Ω';
+    }
+    function fmtCond(g) {
+        if (!isFinite(g)) return '--';
+        if (g >= 1) return parseFloat(g.toPrecision(3)) + ' S';
+        if (g >= 1e-3) return parseFloat((g * 1e3).toPrecision(3)) + ' mS';
+        return parseFloat((g * 1e6).toPrecision(3)) + ' μS';
+    }
+
+    // ================= 求解 =================
+    function solve() {
+        const s = state.si;
+        const key = state.known.slice().sort().join('');
+        switch (key) {
+            case 'iv': // 已知 V, I
+                s.r = s.i !== 0 ? s.v / s.i : NaN;
+                s.p = s.v * s.i;
+                break;
+            case 'rv': // 已知 V, R
+                s.i = s.r !== 0 ? s.v / s.r : NaN;
+                s.p = s.r !== 0 ? s.v * s.v / s.r : NaN;
+                break;
+            case 'pv': // 已知 V, P
+                s.i = s.v !== 0 ? s.p / s.v : NaN;
+                s.r = (s.v !== 0 && s.p > 0) ? s.v * s.v / s.p : NaN;
+                break;
+            case 'ir': // 已知 I, R
+                s.v = s.i * s.r;
+                s.p = s.i * s.i * s.r;
+                break;
+            case 'ip': // 已知 I, P
+                s.v = s.i !== 0 ? s.p / s.i : NaN;
+                s.r = s.i !== 0 ? s.p / (s.i * s.i) : NaN;
+                break;
+            case 'pr': // 已知 R, P
+                s.i = (s.r > 0 && s.p >= 0) ? Math.sqrt(s.p / s.r) : NaN;
+                s.v = (s.r >= 0 && s.p >= 0) ? Math.sqrt(s.p * s.r) : NaN;
+                break;
+        }
+        // 除零/负值保护：任一无效（含 I 或 R 为 0 导致的求解失败）
+        state.valid = QUANT.every(q => isFinite(s[q])) && s.r > 0 && s.p >= 0;
+    }
+
+    // ================= 控件 =================
+    function refreshDisplays() {
+        QUANT.forEach(q => {
+            const el = document.getElementById('val' + q.toUpperCase());
+            const unitSel = document.getElementById('unit' + q.toUpperCase());
+            const isKnown = state.known.includes(q);
+            el.readOnly = !isKnown;
+            if (isKnown && document.activeElement === el) return; // 不打断正在输入
+            const factor = UNIT_FACTORS[q][parseInt(unitSel.value)];
+            const siVal = state.si[q];
+            if (isFinite(siVal)) { el.value = formatDisplay(siVal / factor); el.placeholder = ''; }
+            else { el.value = ''; el.placeholder = '--'; }
+        });
+    }
+
+    function bindQuantity(q) {
+        const el = document.getElementById('val' + q.toUpperCase());
+        const unitSel = document.getElementById('unit' + q.toUpperCase());
+        el.addEventListener('input', function() {
+            if (!state.known.includes(q)) return;
+            const disp = parseFloat(el.value);
+            if (isNaN(disp)) return;
+            state.si[q] = disp * UNIT_FACTORS[q][parseInt(unitSel.value)];
+            renderAll();
+        });
+        el.addEventListener('change', function() {
+            if (!state.known.includes(q)) return;
+            const disp = parseFloat(el.value);
+            const factor = UNIT_FACTORS[q][parseInt(unitSel.value)];
+            if (isNaN(disp)) { el.value = formatDisplay(state.si[q] / factor); return; }
+            state.si[q] = disp * factor;
+            el.value = formatDisplay(state.si[q] / factor);
+            renderAll();
+        });
+        unitSel.addEventListener('change', function() { renderAll(); });
+    }
+
+    function bindKnownChk(chkId, q) {
+        const chk = document.getElementById(chkId);
+        chk.addEventListener('click', function() {
+            if (chk.checked) {
+                if (state.known.length >= 2 && !state.known.includes(q)) {
+                    chk.checked = false; // 非法：已知量已达两个，忽略并复原
+                    flashWarn('只能恰好有两个已知量，本次勾选已忽略。如需更换，本工具保持当前两个已知量。');
+                    return;
+                }
+                if (!state.known.includes(q)) state.known.push(q);
+            } else {
+                if (state.known.length <= 2) {
+                    chk.checked = true; // 非法：已知量不能少于两个，忽略并复原
+                    flashWarn('至少需要两个已知量才能求解，无法取消勾选。');
+                    return;
+                }
+                const idx = state.known.indexOf(q);
+                if (idx >= 0) state.known.splice(idx, 1);
+            }
+            renderAll();
+        });
+    }
+
+    function flashWarn(msg) {
+        flashMsg = msg;
+        renderWarn();
+        if (flashTimer) clearTimeout(flashTimer);
+        flashTimer = setTimeout(function() { flashMsg = ''; flashTimer = null; renderWarn(); }, 1800);
+    }
+
+    // ================= 工程提示 =================
+    function getWarnings() {
+        const red = [], yellow = [];
+        const s = state.si;
+        if (!state.valid) red.push('除零或无效输入：I 或 R 为 0（或结果为负/无效）时无法求解未知量，请检查输入。');
+        if (isFinite(s.i) && s.i > 10) red.push('电流很大（' + fmtAmp(s.i) + '），注意线径与接插件载流。');
+        if (isFinite(s.v) && s.v > 100) red.push('高压危险（' + fmtVolt(s.v) + '）。');
+        if (isFinite(s.p) && s.p > 0.25) yellow.push('功率（' + fmtPower(s.p) + '）超过 1/4W，注意器件降额。');
+        if (isFinite(s.v) && s.v > 50) yellow.push('电压（' + fmtVolt(s.v) + '）超过安全特低电压 SELV（50 V）。');
+        if (isFinite(s.r) && s.r >= 0 && s.r < 1) yellow.push('接近短路（R = ' + fmtOhm(s.r) + '），注意电流冲击。');
+        return { red, yellow };
+    }
+
+    // ================= 渲染 =================
+    function renderWarn() {
+        const wb = document.getElementById('warnBox');
+        wb.style.display = 'block';
+        if (flashMsg) {
+            wb.className = 'warn-box flash';
+            wb.textContent = flashMsg;
+            return;
+        }
+        const w = getWarnings();
+        if (w.red.length) { wb.className = 'warn-box red'; wb.innerHTML = w.red.concat(w.yellow).join('<br>'); }
+        else if (w.yellow.length) { wb.className = 'warn-box'; wb.innerHTML = w.yellow.join('<br>'); }
+        else { wb.className = 'warn-box green'; wb.textContent = '各量在常规范围'; }
+    }
+
+    function renderDashboard() {
+        const s = state.si;
+        // 卡片 1：电阻 R
+        document.getElementById('t1').textContent = '电阻 R';
+        document.getElementById('v1').textContent = fmtOhm(s.r);
+        if (state.known.includes('r')) {
+            document.getElementById('s1').textContent = '已知输入';
+        } else if (isFinite(s.r) && s.r > 0) {
+            document.getElementById('s1').textContent = '电导 G = 1/R = ' + fmtCond(1 / s.r);
+        } else {
+            document.getElementById('s1').textContent = '--';
+        }
+        // 卡片 2：功率 P
+        document.getElementById('t2').textContent = '功率 P';
+        document.getElementById('v2').textContent = fmtPower(s.p);
+        document.getElementById('s2').textContent = isFinite(s.p) ? '每小时耗电 ' + s.p.toFixed(2) + ' Wh' : '--';
+        // 卡片 3：公式验算
+        document.getElementById('t3').textContent = '公式验算';
+        if (state.valid) {
+            const vr = s.i * s.r;
+            const ok = Math.abs(vr - s.v) <= Math.max(Math.abs(s.v), 1e-9) * 1e-6;
+            document.getElementById('v3').textContent = 'V = I·R = ' + vr.toFixed(2) + ' V ' + (ok ? '✓' : '✗');
+            document.getElementById('s3').textContent = 'P = V·I = ' + (s.v * s.i).toFixed(2) + ' W';
+        } else {
+            document.getElementById('v3').textContent = '--';
+            document.getElementById('s3').textContent = '--';
+        }
+    }
+
+    function drawChart() {
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        const pad = { top: 50, right: 75, bottom: 60, left: 90 };
+        const plotW = w - pad.left - pad.right;
+        const plotH = h - pad.top - pad.bottom;
+
+        if (!state.valid) {
+            ctx.fillStyle = '#f14c4c';
+            ctx.font = 'bold 14px "Microsoft YaHei", Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('输入无效（I 或 R 为 0，或结果为负/除零），无法绘制曲线', w / 2, h / 2);
+            return;
+        }
+
+        const s = state.si;
+        const r = s.r;
+        const vMax = Math.max(Math.abs(s.v) * 1.3, 1e-9);
+        const iMax = (vMax / r) * 1.05;
+        const pMax = (vMax * vMax / r) * 1.05;
+        const xOf = v => pad.left + (v / vMax) * plotW;
+        const yOfI = i => pad.top + plotH - (i / iMax) * plotH;
+        const yOfP = p => pad.top + plotH - (p / pMax) * plotH;
+
+        // 网格
+        ctx.beginPath(); ctx.strokeStyle = '#2d2d30'; ctx.lineWidth = 1;
+        for (let i = 0; i <= 10; i++) { const x = pad.left + (plotW / 10) * i; ctx.moveTo(x, pad.top); ctx.lineTo(x, h - pad.bottom); }
+        for (let i = 0; i <= 6; i++) { const y = pad.top + (plotH / 6) * i; ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); }
+        ctx.stroke();
+
+        // 刻度（横轴电压、左轴电流、右轴功率，单位自适应）
+        const uV = unitPick(vMax, VLT_UNITS);
+        const uI = unitPick(iMax, AMP_UNITS);
+        const uP = unitPick(pMax, PWR_UNITS);
+        ctx.fillStyle = '#9a9a9a'; ctx.font = '12px Arial'; ctx.textAlign = 'center';
+        for (let i = 0; i <= 5; i++) ctx.fillText(fmtTick(vMax / 5 * i, uV), pad.left + (plotW / 5) * i, h - pad.bottom + 20);
+        ctx.fillText('电压 V', w / 2, h - 16);
+        ctx.textAlign = 'right'; ctx.fillStyle = '#4fc1ff';
+        for (let i = 0; i <= 6; i++) ctx.fillText(fmtTick(iMax / 6 * (6 - i), uI), pad.left - 8, pad.top + (plotH / 6) * i + 4);
+        ctx.textAlign = 'left'; ctx.fillStyle = '#ff7b00';
+        for (let i = 0; i <= 6; i++) ctx.fillText(fmtTick(pMax / 6 * (6 - i), uP), w - pad.right + 8, pad.top + (plotH / 6) * i + 4);
+        ctx.save(); ctx.translate(18, pad.top + plotH / 2); ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center'; ctx.fillStyle = '#4fc1ff'; ctx.fillText('电流 I', 0, 0); ctx.restore();
+        ctx.save(); ctx.translate(w - 10, pad.top + plotH / 2); ctx.rotate(Math.PI / 2);
+        ctx.textAlign = 'center'; ctx.fillStyle = '#ff7b00'; ctx.fillText('功率 P', 0, 0); ctx.restore();
+
+        // 电流曲线 I(V) = V/R（左轴，青色实线）
+        const N = 200;
+        ctx.beginPath(); ctx.strokeStyle = '#4fc1ff'; ctx.lineWidth = 3; ctx.setLineDash([]);
+        for (let i = 0; i <= N; i++) {
+            const v = (vMax / N) * i;
+            const x = xOf(v), y = yOfI(v / r);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // 功率曲线 P(V) = V²/R（右轴，橙色虚线）
+        ctx.beginPath(); ctx.strokeStyle = '#ff7b00'; ctx.lineWidth = 2; ctx.setLineDash([7, 4]);
+        for (let i = 0; i <= N; i++) {
+            const v = (vMax / N) * i;
+            const x = xOf(v), y = yOfP(v * v / r);
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke(); ctx.setLineDash([]);
+
+        // 工作点与虚线引导线
+        if (s.v >= 0) {
+            const px = xOf(s.v), py = yOfI(s.i);
+            ctx.beginPath(); ctx.strokeStyle = '#6a6a6a'; ctx.lineWidth = 1; ctx.setLineDash([4, 4]);
+            ctx.moveTo(px, h - pad.bottom); ctx.lineTo(px, py);
+            ctx.moveTo(pad.left, py); ctx.lineTo(px, py);
+            ctx.stroke(); ctx.setLineDash([]);
+            ctx.beginPath(); ctx.fillStyle = '#ff7b00'; ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#1e1e1e'; ctx.lineWidth = 1.5; ctx.stroke();
+            const label = 'V = ' + fmtVolt(s.v) + '，I = ' + fmtAmp(s.i);
+            ctx.font = 'bold 12px Arial';
+            const tw = ctx.measureText(label).width + 14;
+            const lx = Math.max(pad.left + tw / 2, Math.min(w - pad.right - tw / 2, px));
+            const ly = py - 26 < pad.top + 10 ? py + 24 : py - 26;
+            ctx.fillStyle = 'rgba(30,30,30,0.88)'; ctx.fillRect(lx - tw / 2, ly - 9, tw, 18);
+            ctx.strokeStyle = '#ff7b00'; ctx.lineWidth = 1; ctx.strokeRect(lx - tw / 2, ly - 9, tw, 18);
+            ctx.fillStyle = '#ff7b00'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, lx, ly); ctx.textBaseline = 'alphabetic';
+        }
+
+        // 左上角：R 值标注与图例
+        ctx.font = '12px Arial'; ctx.textAlign = 'left';
+        ctx.fillStyle = '#4fc1ff'; ctx.fillRect(pad.left + 10, 18, 20, 4);
+        ctx.fillStyle = '#d4d4d4';
+        ctx.fillText('I = V/R（R = ' + fmtOhm(r) + '）', pad.left + 40, 24);
+        ctx.fillStyle = '#ff7b00'; ctx.fillRect(pad.left + 320, 18, 20, 4);
+        ctx.fillStyle = '#d4d4d4';
+        ctx.fillText('P = V²/R', pad.left + 350, 24);
+    }
+
+    function renderAll() {
+        solve();
+        refreshDisplays();
+        renderWarn();
+        renderDashboard();
+        drawChart();
+    }
+
+    function exportCSV() {
+        if (!state.valid) { flashWarn('当前输入无效（除零或负值），无法导出曲线。'); return; }
+        const r = state.si.r;
+        const vMax = Math.abs(state.si.v) * 1.3;
+        let csv = 'data:text/csv;charset=utf-8,\uFEFF';
+        csv += 'V(V),I(A),P(W)\n';
+        const samples = 100;
+        for (let i = 0; i < samples; i++) {
+            const v = vMax * i / (samples - 1);
+            const cur = v / r;
+            const p = v * v / r;
+            csv += v.toFixed(6) + ',' + cur.toFixed(6) + ',' + p.toFixed(6) + '\n';
+        }
+        const link = document.createElement('a');
+        link.setAttribute('href', encodeURI(csv));
+        link.setAttribute('download', '欧姆定律_功率曲线.csv');
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    // 初始化控件
+    QUANT.forEach(bindQuantity);
+    bindKnownChk('chkV', 'v');
+    bindKnownChk('chkI', 'i');
+    bindKnownChk('chkR', 'r');
+    bindKnownChk('chkP', 'p');
+
+    renderAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>热阻与散热器计算器</title>
+    <style>
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-tertiary: #2d2d30;
+            --bg-elevated: #333335;
+            --border-color: #3c3c3c;
+            --text-primary: #d4d4d4;
+            --text-secondary: #9a9a9a;
+            --text-muted: #6a6a6a;
+            --accent-orange: #ff7b00;
+            --accent-cyan: #4fc1ff;
+            --accent-red: #f14c4c;
+            --accent-green: #4ec9b0;
+            --accent-blue: #569cd6;
+            --accent-yellow: #e6b800;
+        }
+        body { font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; background-color: var(--bg-primary); margin: 0; padding: 20px; color: var(--text-primary); min-height: 100vh; }
+        .container { max-width: 1000px; margin: 0 auto; background: var(--bg-secondary); padding: 30px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); border: 1px solid var(--border-color); }
+        h1 { text-align: center; color: var(--accent-cyan); font-size: 24px; margin-bottom: 14px; font-weight: 600; letter-spacing: 0.5px; }
+        .back-btn { position: fixed; top: 16px; left: 16px; z-index: 100; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); font-size: 13px; font-weight: bold; text-decoration: none; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); transition: all 0.2s; }
+        .back-btn:hover { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #1a1a1a; }
+
+        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 22px; padding: 20px; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color); }
+        .control-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 13px; color: var(--text-secondary); }
+        .control-group .value-row { display: flex; align-items: center; margin-bottom: 12px; }
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent-cyan); height: 6px; }
+        .val-stepper { display: inline-flex; align-items: stretch; }
+        .val-stepper .step-btn { width: 28px; height: 32px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; transition: background 0.15s, color 0.15s; }
+        .val-stepper .step-btn:hover { background: var(--accent-cyan); color: #1a1a1a; }
+        .val-stepper .step-btn:active { background: #7ad4ff; }
+        .val-stepper .step-btn.left { border-right: none; border-radius: 4px 0 0 4px; }
+        .val-stepper .step-btn.right { border-left: none; border-radius: 0 4px 4px 0; }
+        .val-input { width: 80px; font-family: inherit; font-weight: bold; font-size: 15px; text-align: center; color: var(--accent-cyan); background: var(--bg-primary); border: 1px solid var(--border-color); padding: 4px 8px; transition: border-color 0.2s, box-shadow 0.2s; border-radius: 0; }
+        .val-input:focus { outline: none; border-color: var(--accent-cyan); box-shadow: 0 0 0 2px rgba(79, 193, 255, 0.25); z-index: 1; position: relative; }
+        .val-input::-webkit-outer-spin-button, .val-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .val-input { -moz-appearance: textfield; }
+        .unit-select { margin-left: 6px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-family: inherit; font-weight: bold; font-size: 13px; padding: 5px 6px; border-radius: 4px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+        .unit-select:hover, .unit-select:focus { outline: none; border-color: var(--accent-cyan); color: var(--accent-cyan); }
+
+        .dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 18px; }
+        .metric-card { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: transform 0.2s, box-shadow 0.2s; }
+        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .metric-card.tau { border-top: 4px solid var(--accent-blue); background: linear-gradient(180deg, rgba(86, 156, 214, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.thresh { border-top: 4px solid var(--accent-orange); background: linear-gradient(180deg, rgba(255, 123, 0, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.full { border-top: 4px solid var(--accent-green); background: linear-gradient(180deg, rgba(78, 201, 176, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.margin { border-top: 4px solid var(--accent-yellow); background: linear-gradient(180deg, rgba(230, 184, 0, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-title { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; font-weight: bold; }
+        .metric-value { font-size: 24px; font-weight: 900; }
+        .metric-sub { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+
+        canvas { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; width: 100%; box-shadow: inset 0 0 20px rgba(0,0,0,0.3); margin-bottom: 20px; }
+        .btn-export { display: block; width: 280px; margin: 0 auto; padding: 12px 20px; background-color: var(--accent-cyan); color: #1a1a1a; text-align: center; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+        .btn-export:hover { background-color: #7ad4ff; box-shadow: 0 4px 12px rgba(79, 193, 255, 0.4); }
+
+        .warn-box { display: none; margin-top: 14px; padding: 10px 14px; background: rgba(230,184,0,0.10); border: 1px solid var(--accent-yellow); border-radius: 6px; color: var(--accent-yellow); font-size: 13px; line-height: 1.7; }
+        .note { font-size: 12px; color: var(--text-muted); line-height: 1.7; margin-top: 4px; }
+    </style>
+</head>
+<body>
+<a class="back-btn" href="index.html" title="返回工具索引">&#8592; 返回目录</a>
+<div class="container">
+    <h1>&#128293; 热阻与散热器计算器</h1>
+
+    <div class="controls-grid">
+        <div class="control-group">
+            <label>功耗 (P)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valP" class="val-input" step="any" value="5">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitP"><option value="0" selected>W</option></select>
+            </div>
+            <input type="range" id="slideP" min="0.1" max="50" step="0.01" value="5">
+        </div>
+        <div class="control-group">
+            <label>结-壳热阻 (&theta;JC)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valThjc" class="val-input" step="any" value="1.5">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitThjc"><option value="0" selected>&deg;C/W</option></select>
+            </div>
+            <input type="range" id="slideThjc" min="0.1" max="20" step="0.01" value="1.5">
+            <div class="note">由器件封装决定，查数据手册</div>
+        </div>
+        <div class="control-group">
+            <label>接触热阻 (&theta;CS)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valThcs" class="val-input" step="any" value="0.5">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitThcs"><option value="0" selected>&deg;C/W</option></select>
+            </div>
+            <input type="range" id="slideThcs" min="0.1" max="5" step="0.01" value="0.5">
+            <div class="note">与安装方式/导热硅脂/绝缘垫片相关，典型 0.1~1 &deg;C/W</div>
+        </div>
+        <div class="control-group">
+            <label>散热器热阻 (&theta;SA)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valThsa" class="val-input" step="any" value="4">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitThsa"><option value="0" selected>&deg;C/W</option></select>
+            </div>
+            <input type="range" id="slideThsa" min="0.1" max="30" step="0.01" value="4">
+            <div class="note">与散热器体积/风速相关，查散热器手册</div>
+        </div>
+        <div class="control-group">
+            <label>环境温度 (Tamb)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valTamb" class="val-input" step="any" value="25">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitTamb"><option value="0" selected>&deg;C</option></select>
+            </div>
+            <input type="range" id="slideTamb" min="-20" max="85" step="1" value="25">
+        </div>
+        <div class="control-group">
+            <label>最高结温 (Tjmax)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valTjmax" class="val-input" step="any" value="125">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitTjmax"><option value="0" selected>&deg;C</option></select>
+            </div>
+            <input type="range" id="slideTjmax" min="80" max="200" step="5" value="125">
+            <div class="note">数据手册绝对最大值，常用 125/150/175 &deg;C</div>
+        </div>
+    </div>
+    <div class="warn-box" id="warnBox"></div>
+    <div class="note">热阻链：结 &rarr; 壳(&theta;JC) &rarr; 接触面(&theta;CS) &rarr; 散热器(&theta;SA) &rarr; 环境。&theta;JA = &theta;JC + &theta;CS + &theta;SA；Tj = Tamb + P&middot;&theta;JA；Pmax = (Tjmax &minus; Tamb) / &theta;JA。结果用于工程估算，大功率/高温场景请以实测复核。</div>
+
+    <div class="dashboard">
+        <div class="metric-card thresh">
+            <div class="metric-title">结温 Tj</div>
+            <div class="metric-value" id="v1" style="color:#ff7b00;">--</div>
+            <div class="metric-sub" id="s1">--</div>
+        </div>
+        <div class="metric-card tau">
+            <div class="metric-title">总热阻 &theta;JA</div>
+            <div class="metric-value" id="v2" style="color:#569cd6;">--</div>
+            <div class="metric-sub" id="s2">--</div>
+        </div>
+        <div class="metric-card full">
+            <div class="metric-title">最大允许功耗 Pmax</div>
+            <div class="metric-value" id="v3" style="color:#4ec9b0;">--</div>
+            <div class="metric-sub" id="s3">--</div>
+        </div>
+        <div class="metric-card margin">
+            <div class="metric-title">温度裕量</div>
+            <div class="metric-value" id="v4" style="color:#e6b800;">--</div>
+            <div class="metric-sub" id="s4">--</div>
+        </div>
+    </div>
+
+    <canvas id="chartCanvas" width="900" height="420"></canvas>
+
+    <button class="btn-export" onclick="exportCSV()">导出结温-功耗扫描表 (CSV)</button>
+</div>
+
+<script>
+    const UNIT_FACTORS = { p: [1], thjc: [1], thcs: [1], thsa: [1], tamb: [1], tjmax: [1] };
+    const state = { p: 5, thjc: 1.5, thcs: 0.5, thsa: 4, tamb: 25, tjmax: 125 };
+
+    const canvas = document.getElementById('chartCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function formatDisplay(v) { return parseFloat(v.toPrecision(4)).toString(); }
+
+    // 微调按钮固定步进：按显示值量级取整齐步长（0.5 / 0.1 / 0.01 / 0.001）
+    function niceStep(v) {
+        const a = Math.abs(v);
+        if (a >= 10) return 0.5;
+        if (a >= 1) return 0.1;
+        if (a >= 0.1) return 0.01;
+        return 0.001;
+    }
+    function stepDecimals(st) {
+        if (st >= 1) return 0;
+        if (st >= 0.1) return 1;
+        if (st >= 0.01) return 2;
+        return 3;
+    }
+
+    // ================= 热阻链计算 =================
+    function compute() {
+        const thja = state.thjc + state.thcs + state.thsa;
+        const tj = state.tamb + state.p * thja;
+        const pmax = Math.max(state.tjmax - state.tamb, 0) / thja;
+        const margin = (state.tjmax - tj) / state.tjmax * 100;
+        return { thja, tj, pmax, margin };
+    }
+
+    // 线性控件绑定
+    function bindLinearControl(sliderId, valId, unitId, varName, defaultUnitIdx, sliderMin, sliderMax, sliderStep) {
+        const slider = sliderId ? document.getElementById(sliderId) : null;
+        const numInput = document.getElementById(valId);
+        const unitSel = document.getElementById(unitId);
+        const stepper = numInput.closest('.val-stepper');
+        const min = sliderMin !== undefined ? sliderMin : (slider ? parseFloat(slider.min) : 0);
+        const max = sliderMax !== undefined ? sliderMax : (slider ? parseFloat(slider.max) : 100);
+        const step = sliderStep !== undefined ? sliderStep : (slider ? parseFloat(slider.step) : 1);
+        unitSel.value = String(defaultUnitIdx);
+
+        function getFactor() { return UNIT_FACTORS[varName][parseInt(unitSel.value)]; }
+        function refreshInputDisplay() { numInput.value = formatDisplay(state[varName] / getFactor()); }
+        function refreshSliderPosition() { if (slider) slider.value = state[varName]; }
+        function setSiValue(siVal) {
+            siVal = Math.max(min, Math.min(max, siVal));
+            const steps = Math.round((siVal - min) / step);
+            siVal = Math.max(min, Math.min(max, min + steps * step));
+            state[varName] = siVal;
+            refreshInputDisplay();
+            refreshSliderPosition();
+            renderAll();
+        }
+
+        if (slider) slider.oninput = function() {
+            state[varName] = parseFloat(slider.value);
+            refreshInputDisplay();
+            renderAll();
+        };
+        numInput.oninput = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) return;
+            state[varName] = Math.max(min, Math.min(max, dispVal * getFactor()));
+            refreshSliderPosition();
+            renderAll();
+        };
+        numInput.onchange = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) { refreshInputDisplay(); return; }
+            setSiValue(dispVal * getFactor());
+        };
+        unitSel.onchange = function() { refreshInputDisplay(); numInput.focus(); };
+
+        if (stepper) {
+            let holdTimer = null, holdInterval = null;
+            const holdDelay = 400, holdIntervalMs = 80;
+            stepper.querySelectorAll('.step-btn').forEach(btn => {
+                const dir = parseFloat(btn.dataset.step);
+                const doStep = () => {
+                    const disp = state[varName] / getFactor();
+                    const stepDisp = step / getFactor();
+                    // 滑块步长在显示单位下足够大时直接用滑块步长，否则按量级取 niceStep
+                    const st = Math.max(stepDisp, niceStep(disp));
+                    const newDisp = parseFloat((disp + dir * st).toFixed(stepDecimals(st)));
+                    setSiValue(newDisp * getFactor());
+                };
+                btn.addEventListener('mousedown', function(e) {
+                    e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                const stopHold = () => {
+                    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+                    if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+                };
+                btn.addEventListener('mouseup', stopHold);
+                btn.addEventListener('mouseleave', stopHold);
+                btn.addEventListener('touchstart', function(e) { e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                btn.addEventListener('touchend', stopHold);
+                btn.addEventListener('touchcancel', stopHold);
+            });
+        }
+        refreshInputDisplay();
+        refreshSliderPosition();
+    }
+
+    // ================= 渲染 =================
+    function renderWarn(res) {
+        const wb = document.getElementById('warnBox');
+        let msgs, color, border, bg;
+        if (res.tj > state.tjmax) {
+            msgs = ['结温超过最高允许值 Tjmax = ' + state.tjmax + ' °C，器件将损坏！必须降低功耗、选更低 θSA 的散热器或改善接触热阻 θCS。'];
+            color = '#f14c4c'; border = '#f14c4c'; bg = 'rgba(241,76,76,0.10)';
+        } else if (res.tj > state.tjmax - 25) {
+            msgs = ['余量不足：Tj 距 Tjmax 不足 25 °C，建议加大散热器面积/增强风速、涂导热硅脂降低 θCS 或降低功耗。'];
+            color = '#e6b800'; border = '#e6b800'; bg = 'rgba(230,184,0,0.10)';
+        } else {
+            msgs = ['结温安全，热设计裕量充足。'];
+            color = '#4ec9b0'; border = '#4ec9b0'; bg = 'rgba(78,201,176,0.10)';
+        }
+        wb.style.display = 'block';
+        wb.style.color = color;
+        wb.style.borderColor = border;
+        wb.style.background = bg;
+        wb.innerHTML = msgs.join('<br>');
+    }
+
+    function warnColor(res) {
+        if (res.tj > state.tjmax) return '#f14c4c';
+        if (res.tj > state.tjmax - 25) return '#e6b800';
+        return null;
+    }
+
+    function renderDashboard(res) {
+        const v1 = document.getElementById('v1');
+        v1.textContent = res.tj.toFixed(1) + ' °C';
+        v1.style.color = warnColor(res) || '#ff7b00';
+        document.getElementById('s1').textContent = '温升 ΔT = ' + (res.tj - state.tamb).toFixed(1) + ' °C';
+        document.getElementById('v2').textContent = formatDisplay(res.thja) + ' °C/W';
+        document.getElementById('s2').textContent = '= θJC + θCS + θSA';
+        document.getElementById('v3').textContent = formatDisplay(res.pmax) + ' W';
+        document.getElementById('s3').textContent = '(Tjmax − Tamb) / θJA';
+        const v4 = document.getElementById('v4');
+        v4.textContent = res.margin.toFixed(1) + ' %';
+        v4.style.color = warnColor(res) || '#4ec9b0';
+        document.getElementById('s4').textContent = '(Tjmax − Tj) / Tjmax';
+    }
+
+    function drawChart(res) {
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        const pad = { top: 50, right: 70, bottom: 60, left: 85 };
+        const plotW = w - pad.left - pad.right;
+        const plotH = h - pad.top - pad.bottom;
+        // P 扫描范围：0 ~ 1.5×Pmax（当前工作点超出时自动扩展）
+        const pEnd = Math.max(1.5 * res.pmax, state.p * 1.1, 1);
+        const tjMin = state.tamb;
+        const tjMax = state.tamb + pEnd * res.thja;
+        const xOf = p => pad.left + (p / pEnd) * plotW;
+        const yOf = t => pad.top + plotH - ((t - tjMin) / (tjMax - tjMin)) * plotH;
+
+        // 网格
+        ctx.beginPath(); ctx.strokeStyle = '#2d2d30'; ctx.lineWidth = 1;
+        for (let i = 0; i <= 10; i++) { const x = pad.left + (plotW / 10) * i; ctx.moveTo(x, pad.top); ctx.lineTo(x, h - pad.bottom); }
+        for (let i = 0; i <= 6; i++) { const y = pad.top + (plotH / 6) * i; ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); }
+        ctx.stroke();
+
+        // 刻度
+        ctx.fillStyle = '#9a9a9a'; ctx.font = '12px Arial'; ctx.textAlign = 'center';
+        for (let i = 0; i <= 5; i++) ctx.fillText(parseFloat((pEnd / 5 * i).toPrecision(3)) + ' W', pad.left + (plotW / 5) * i, h - pad.bottom + 20);
+        ctx.fillText('功耗 P', w / 2, h - 16);
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 6; i++) {
+            const t = tjMin + (tjMax - tjMin) / 6 * (6 - i);
+            ctx.fillText(t.toFixed(0) + ' °C', pad.left - 8, pad.top + (plotH / 6) * i + 4);
+        }
+        ctx.save(); ctx.translate(24, pad.top + plotH / 2); ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center'; ctx.fillText('结温 Tj', 0, 0); ctx.restore();
+
+        // 参考线：Tjmax 绝对上限（红）/ 余量线 Tjmax−25（黄）
+        const hRef = (t, color, label) => {
+            if (t <= tjMin || t >= tjMax) return;
+            const y = yOf(t);
+            ctx.beginPath(); ctx.strokeStyle = color; ctx.setLineDash([5, 4]); ctx.lineWidth = 1;
+            ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = color; ctx.textAlign = 'right'; ctx.fillText(label, w - pad.right - 6, y - 5);
+        };
+        hRef(state.tjmax, '#f14c4c', 'Tjmax ' + state.tjmax + ' °C');
+        hRef(state.tjmax - 25, '#e6b800', '余量线 Tjmax−25 °C');
+
+        // Tj(P) 曲线（线性扫描，N=200）
+        ctx.beginPath(); ctx.strokeStyle = '#4fc1ff'; ctx.lineWidth = 3;
+        const N = 200;
+        for (let n = 0; n <= N; n++) {
+            const p = (pEnd / N) * n;
+            const t = state.tamb + p * res.thja;
+            const x = xOf(p), y = yOf(t);
+            if (n === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // 工作点
+        const px = xOf(state.p), py = Math.max(pad.top, Math.min(h - pad.bottom, yOf(res.tj)));
+        ctx.beginPath(); ctx.fillStyle = '#ff7b00'; ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#1e1e1e'; ctx.lineWidth = 1.5; ctx.stroke();
+        const label = 'P = ' + formatDisplay(state.p) + ' W，Tj = ' + res.tj.toFixed(1) + ' °C';
+        ctx.font = 'bold 12px Arial';
+        const tw = ctx.measureText(label).width + 14;
+        const lx = Math.max(pad.left + tw / 2, Math.min(w - pad.right - tw / 2, px));
+        const ly = py - 26 < pad.top + 10 ? py + 24 : py - 26;
+        ctx.fillStyle = 'rgba(30,30,30,0.88)'; ctx.fillRect(lx - tw / 2, ly - 9, tw, 18);
+        ctx.strokeStyle = '#ff7b00'; ctx.lineWidth = 1; ctx.strokeRect(lx - tw / 2, ly - 9, tw, 18);
+        ctx.fillStyle = '#ff7b00'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, lx, ly); ctx.textBaseline = 'alphabetic';
+
+        // 公式标注
+        ctx.fillStyle = '#4fc1ff'; ctx.fillRect(pad.left + 10, 16, 20, 4);
+        ctx.fillStyle = '#d4d4d4'; ctx.textAlign = 'left'; ctx.font = '12px Arial';
+        ctx.fillText('Tj = Tamb + P·θJA，θJA = θJC + θCS + θSA', pad.left + 40, 22);
+    }
+
+    function renderAll() {
+        const res = compute();
+        renderWarn(res);
+        renderDashboard(res);
+        drawChart(res);
+    }
+
+    function exportCSV() {
+        const res = compute();
+        let csv = 'data:text/csv;charset=utf-8,\uFEFF';
+        csv += 'P(W),Tj(°C),裕量(%)\n';
+        const pEnd = Math.max(1.5 * res.pmax, state.p * 1.1, 1);
+        const N = 100;
+        for (let n = 0; n <= N; n++) {
+            const p = (pEnd / N) * n;
+            const tj = state.tamb + p * res.thja;
+            const mg = (state.tjmax - tj) / state.tjmax * 100;
+            csv += p.toFixed(3) + ',' + tj.toFixed(2) + ',' + mg.toFixed(2) + '\n';
+        }
+        const link = document.createElement('a');
+        link.setAttribute('href', encodeURI(csv));
+        link.setAttribute('download', '热阻与散热器_P' + formatDisplay(state.p) + 'W扫描.csv');
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    // 初始化控件
+    bindLinearControl('slideP', 'valP', 'unitP', 'p', 0, 0.1, 50, 0.01);
+    bindLinearControl('slideThjc', 'valThjc', 'unitThjc', 'thjc', 0, 0.1, 20, 0.01);
+    bindLinearControl('slideThcs', 'valThcs', 'unitThcs', 'thcs', 0, 0.1, 5, 0.01);
+    bindLinearControl('slideThsa', 'valThsa', 'unitThsa', 'thsa', 0, 0.1, 30, 0.01);
+    bindLinearControl('slideTamb', 'valTamb', 'unitTamb', 'tamb', 0, -20, 85, 1);
+    bindLinearControl('slideTjmax', 'valTjmax', 'unitTjmax', 'tjmax', 0, 80, 200, 5);
+
+    renderAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>I2C 上拉电阻计算器</title>
+    <style>
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-tertiary: #2d2d30;
+            --bg-elevated: #333335;
+            --border-color: #3c3c3c;
+            --text-primary: #d4d4d4;
+            --text-secondary: #9a9a9a;
+            --text-muted: #6a6a6a;
+            --accent-orange: #ff7b00;
+            --accent-cyan: #4fc1ff;
+            --accent-red: #f14c4c;
+            --accent-green: #4ec9b0;
+            --accent-blue: #569cd6;
+            --accent-yellow: #e6b800;
+        }
+        body { font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; background-color: var(--bg-primary); margin: 0; padding: 20px; color: var(--text-primary); min-height: 100vh; }
+        .container { max-width: 1000px; margin: 0 auto; background: var(--bg-secondary); padding: 30px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); border: 1px solid var(--border-color); }
+        h1 { text-align: center; color: var(--accent-cyan); font-size: 24px; margin-bottom: 14px; font-weight: 600; letter-spacing: 0.5px; }
+        .back-btn { position: fixed; top: 16px; left: 16px; z-index: 100; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); font-size: 13px; font-weight: bold; text-decoration: none; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); transition: all 0.2s; }
+        .back-btn:hover { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #1a1a1a; }
+
+        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 22px; padding: 20px; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color); }
+        .control-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 13px; color: var(--text-secondary); }
+        .control-group .value-row { display: flex; align-items: center; margin-bottom: 12px; }
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent-cyan); height: 6px; }
+        .val-stepper { display: inline-flex; align-items: stretch; }
+        .val-stepper .step-btn { width: 28px; height: 32px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; transition: background 0.15s, color 0.15s; }
+        .val-stepper .step-btn:hover { background: var(--accent-cyan); color: #1a1a1a; }
+        .val-stepper .step-btn:active { background: #7ad4ff; }
+        .val-stepper .step-btn.left { border-right: none; border-radius: 4px 0 0 4px; }
+        .val-stepper .step-btn.right { border-left: none; border-radius: 0 4px 4px 0; }
+        .val-input { width: 80px; font-family: inherit; font-weight: bold; font-size: 15px; text-align: center; color: var(--accent-cyan); background: var(--bg-primary); border: 1px solid var(--border-color); padding: 4px 8px; transition: border-color 0.2s, box-shadow 0.2s; border-radius: 0; }
+        .val-input:focus { outline: none; border-color: var(--accent-cyan); box-shadow: 0 0 0 2px rgba(79, 193, 255, 0.25); z-index: 1; position: relative; }
+        .val-input::-webkit-outer-spin-button, .val-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .val-input { -moz-appearance: textfield; }
+        .unit-select { margin-left: 6px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-family: inherit; font-weight: bold; font-size: 13px; padding: 5px 6px; border-radius: 4px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+        .unit-select:hover, .unit-select:focus { outline: none; border-color: var(--accent-cyan); color: var(--accent-cyan); }
+        .sel-wide { margin-left: 0; width: 100%; padding: 8px; }
+
+        .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 18px; }
+        .metric-card { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: transform 0.2s, box-shadow 0.2s; }
+        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .metric-card.tau { border-top: 4px solid var(--accent-blue); background: linear-gradient(180deg, rgba(86, 156, 214, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.thresh { border-top: 4px solid var(--accent-orange); background: linear-gradient(180deg, rgba(255, 123, 0, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.full { border-top: 4px solid var(--accent-green); background: linear-gradient(180deg, rgba(78, 201, 176, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-title { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; font-weight: bold; }
+        .metric-value { font-size: 24px; font-weight: 900; }
+        .metric-sub { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+
+        canvas { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; width: 100%; box-shadow: inset 0 0 20px rgba(0,0,0,0.3); margin-bottom: 20px; }
+        .btn-export { display: block; width: 280px; margin: 0 auto; padding: 12px 20px; background-color: var(--accent-cyan); color: #1a1a1a; text-align: center; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+        .btn-export:hover { background-color: #7ad4ff; box-shadow: 0 4px 12px rgba(79, 193, 255, 0.4); }
+
+        .warn-box { display: none; margin-top: 14px; padding: 10px 14px; background: rgba(230,184,0,0.10); border: 1px solid var(--accent-yellow); border-radius: 6px; color: var(--accent-yellow); font-size: 13px; line-height: 1.7; }
+        .note { font-size: 12px; color: var(--text-muted); line-height: 1.7; margin-top: 4px; }
+    </style>
+</head>
+<body>
+<a class="back-btn" href="index.html" title="返回工具索引">&#8592; 返回目录</a>
+<div class="container">
+    <h1>&#128268; I2C 上拉电阻计算器</h1>
+
+    <div class="controls-grid">
+        <div class="control-group">
+            <label>供电电压 (Vdd)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valVdd" class="val-input" step="any" value="3.3">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitVdd"><option value="0" selected>V</option></select>
+            </div>
+            <input type="range" id="slideVdd" min="1.2" max="5.5" step="0.1" value="3.3">
+        </div>
+        <div class="control-group">
+            <label>总线电容 (Cb)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valCb" class="val-input" step="any" value="100">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitCb"><option value="0" selected>pF</option></select>
+            </div>
+            <input type="range" id="slideCb" min="10e-12" max="800e-12" step="5e-12" value="100e-12">
+            <div class="note">I2C 规范总线电容上限 400 pF</div>
+        </div>
+        <div class="control-group">
+            <label>速率模式（上升时间限值）</label>
+            <div class="value-row">
+                <select class="unit-select sel-wide" id="speedSel">
+                    <option value="1000">标准模式 100kHz（tr≤1000ns）</option>
+                    <option value="300" selected>快速模式 400kHz（tr≤300ns）</option>
+                    <option value="120">快速模式+ 1MHz（tr≤120ns）</option>
+                </select>
+            </div>
+            <div class="note" id="speedNote">--</div>
+        </div>
+    </div>
+    <div class="warn-box" id="warnBox"></div>
+    <div class="note">I2C 规范（UM10204）：Rp 下限由低电平输出电压 VOL ≤ 0.4 V、最小灌电流 IOL ≥ 3 mA 决定，Rp_min = (Vdd &minus; 0.4) &divide; 0.003；上限由上升时间 tr &asymp; 0.8473&middot;Rp&middot;Cb（30%&rarr;70%）决定，Rp_max = tr_max &divide; (0.8473&middot;Cb)。标准/快速/快速+ 模式 tr 限值分别为 1000/300/120 ns。</div>
+
+    <div class="dashboard">
+        <div class="metric-card tau">
+            <div class="metric-title">推荐上拉电阻（E24）</div>
+            <div class="metric-value" id="v1" style="color:#569cd6;">--</div>
+            <div class="metric-sub" id="s1">--</div>
+        </div>
+        <div class="metric-card thresh">
+            <div class="metric-title">实际上升时间 tr</div>
+            <div class="metric-value" id="v2" style="color:#ff7b00;">--</div>
+            <div class="metric-sub" id="s2">--</div>
+        </div>
+        <div class="metric-card full">
+            <div class="metric-title">上拉静态电流</div>
+            <div class="metric-value" id="v3" style="color:#4ec9b0;">--</div>
+            <div class="metric-sub" id="s3">--</div>
+        </div>
+    </div>
+
+    <canvas id="chartCanvas" width="900" height="420"></canvas>
+
+    <button class="btn-export" onclick="exportCSV()">导出 Rp-tr 曲线 (CSV)</button>
+</div>
+
+<script>
+    const UNIT_FACTORS = { vdd: [1], cb: [1e-12] };
+    const VOL_MAX = 0.4;      // I2C 低电平输出电压上限 VOL (V)
+    const IOL_MIN = 0.003;    // 规范最小灌电流能力 IOL (A)
+    const TR_K = 0.8473;      // 30%→70% 上升时间系数
+
+    const state = { vdd: 3.3, cb: 100e-12, trMax: 300e-9 };
+
+    const canvas = document.getElementById('chartCanvas');
+    const ctx = canvas.getContext('2d');
+    const speedSel = document.getElementById('speedSel');
+
+    // E24 标准系列（×100 整数表示）
+    const E24 = [100,110,120,130,150,160,180,200,220,240,270,300,330,360,390,430,470,510,560,620,680,750,820,910];
+
+    function formatDisplay(v) { return parseFloat(v.toPrecision(4)).toString(); }
+    function fmtR(v) {
+        if (v >= 1e6) return parseFloat((v/1e6).toPrecision(4)) + ' MΩ';
+        if (v >= 1e3) return parseFloat((v/1e3).toPrecision(4)) + ' kΩ';
+        if (v >= 1) return parseFloat(v.toPrecision(4)) + ' Ω';
+        return parseFloat((v*1e3).toPrecision(4)) + ' mΩ';
+    }
+    function fmtTime(t) {
+        if (t >= 1e-3) return parseFloat((t * 1e3).toPrecision(4)) + ' ms';
+        if (t >= 1e-6) return parseFloat((t * 1e6).toPrecision(4)) + ' μs';
+        return parseFloat((t * 1e9).toPrecision(4)) + ' ns';
+    }
+    function fmtI(a) {
+        if (a >= 1) return parseFloat(a.toPrecision(4)) + ' A';
+        if (a >= 1e-3) return parseFloat((a * 1e3).toPrecision(4)) + ' mA';
+        return parseFloat((a * 1e6).toPrecision(4)) + ' μA';
+    }
+
+    // 微调按钮固定步进：按显示值量级取整齐步长（0.5 / 0.1 / 0.01 / 0.001）
+    function niceStep(v) {
+        const a = Math.abs(v);
+        if (a >= 10) return 0.5;
+        if (a >= 1) return 0.1;
+        if (a >= 0.1) return 0.01;
+        return 0.001;
+    }
+    function stepDecimals(st) {
+        if (st >= 1) return 0;
+        if (st >= 0.1) return 1;
+        if (st >= 0.01) return 2;
+        return 3;
+    }
+
+    // 在可行域内找最接近 rpGeo 的 E24 标准值；域内无 E24 时取最近端点
+    function pickRecommended(rpMin, rpMax) {
+        const rpGeo = Math.sqrt(rpMin * rpMax);
+        let best = null, bd = Infinity;
+        let bestAny = null, bdAny = Infinity;
+        for (let e = 0; e <= 6; e++) for (const b of E24) {
+            const r = (b / 100) * Math.pow(10, e);
+            const d = Math.abs(Math.log(r / rpGeo));
+            if (d < bdAny) { bdAny = d; bestAny = r; }
+            if (r < rpMin || r > rpMax) continue;
+            if (d < bd) { bd = d; best = r; }
+        }
+        if (best === null) best = bestAny;
+        return best;
+    }
+
+    function compute() {
+        const rpMin = (state.vdd - VOL_MAX) / IOL_MIN;
+        const rpMax = state.trMax / (TR_K * state.cb);
+        const feasible = rpMin <= rpMax;
+        const rpSel = feasible ? pickRecommended(rpMin, rpMax) : null;
+        const trSel = rpSel !== null ? TR_K * rpSel * state.cb : null;
+        const iLeak = rpSel !== null ? state.vdd / rpSel : null;
+        const p = rpSel !== null ? state.vdd * state.vdd / rpSel : null;
+        return { rpMin, rpMax, feasible, rpSel, trSel, iLeak, p };
+    }
+
+    // 线性控件绑定
+    function bindLinearControl(sliderId, valId, unitId, varName, defaultUnitIdx, sliderMin, sliderMax, sliderStep) {
+        const slider = sliderId ? document.getElementById(sliderId) : null;
+        const numInput = document.getElementById(valId);
+        const unitSel = document.getElementById(unitId);
+        const stepper = numInput.closest('.val-stepper');
+        const min = sliderMin !== undefined ? sliderMin : (slider ? parseFloat(slider.min) : 0);
+        const max = sliderMax !== undefined ? sliderMax : (slider ? parseFloat(slider.max) : 100);
+        const step = sliderStep !== undefined ? sliderStep : (slider ? parseFloat(slider.step) : 1);
+        unitSel.value = String(defaultUnitIdx);
+
+        function getFactor() { return UNIT_FACTORS[varName][parseInt(unitSel.value)]; }
+        function refreshInputDisplay() { numInput.value = formatDisplay(state[varName] / getFactor()); }
+        function refreshSliderPosition() { if (slider) slider.value = state[varName]; }
+        function setSiValue(siVal) {
+            siVal = Math.max(min, Math.min(max, siVal));
+            const steps = Math.round((siVal - min) / step);
+            siVal = Math.max(min, Math.min(max, min + steps * step));
+            state[varName] = siVal;
+            refreshInputDisplay();
+            refreshSliderPosition();
+            renderAll();
+        }
+
+        if (slider) slider.oninput = function() {
+            state[varName] = parseFloat(slider.value);
+            refreshInputDisplay();
+            renderAll();
+        };
+        numInput.oninput = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) return;
+            state[varName] = Math.max(min, Math.min(max, dispVal * getFactor()));
+            refreshSliderPosition();
+            renderAll();
+        };
+        numInput.onchange = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) { refreshInputDisplay(); return; }
+            setSiValue(dispVal * getFactor());
+        };
+        unitSel.onchange = function() { refreshInputDisplay(); numInput.focus(); };
+
+        if (stepper) {
+            let holdTimer = null, holdInterval = null;
+            const holdDelay = 400, holdIntervalMs = 80;
+            stepper.querySelectorAll('.step-btn').forEach(btn => {
+                const dir = parseFloat(btn.dataset.step);
+                const doStep = () => {
+                    const disp = state[varName] / getFactor();
+                    const stepDisp = step / getFactor();
+                    const st = stepDisp >= 1 ? stepDisp : niceStep(disp);
+                    const newDisp = parseFloat((disp + dir * st).toFixed(stepDecimals(st)));
+                    setSiValue(newDisp * getFactor());
+                };
+                btn.addEventListener('mousedown', function(e) {
+                    e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                const stopHold = () => {
+                    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+                    if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+                };
+                btn.addEventListener('mouseup', stopHold);
+                btn.addEventListener('mouseleave', stopHold);
+                btn.addEventListener('touchstart', function(e) { e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                btn.addEventListener('touchend', stopHold);
+                btn.addEventListener('touchcancel', stopHold);
+            });
+        }
+        refreshInputDisplay();
+        refreshSliderPosition();
+    }
+
+    // ================= 渲染 =================
+    function updateUI() {
+        document.getElementById('speedNote').textContent = '当前模式上升时间限值 tr ≤ ' + fmtTime(state.trMax);
+    }
+
+    function renderWarn(res) {
+        const wb = document.getElementById('warnBox');
+        let msgs, level;
+        if (!res.feasible) {
+            level = 'red';
+            msgs = ['无可行解：总线电容过大或速率过高，请加总线缓冲器（如 PCA9517）或降速。'];
+        } else {
+            const w = [];
+            if (res.rpSel < res.rpMin || res.rpSel > res.rpMax) w.push('可行域内无 E24 标准阻值，已选取距几何中点最近的标准值，请复核 VOL 与上升时间裕量。');
+            if (res.rpMax / res.rpMin < 2) w.push('可行域很窄（Rp_max/Rp_min &lt; 2），注意电阻精度与温度漂移。');
+            if (state.cb > 400e-12) w.push('总线电容接近规范上限 400pF（当前 ' + formatDisplay(state.cb * 1e12) + ' pF）：建议缩短走线、减少挂接器件或加总线缓冲器。');
+            if (res.rpSel < 1000) w.push('阻值偏小（&lt; 1 kΩ），注意驱动器件灌电流余量（规范要求 ≥ 3 mA）。');
+            if (w.length) { level = 'yellow'; msgs = w; }
+            else { level = 'green'; msgs = ['可行域充足，上拉设计可靠。']; }
+        }
+        wb.style.display = 'block';
+        wb.innerHTML = msgs.join('<br>');
+        if (level === 'red') { wb.style.borderColor = '#f14c4c'; wb.style.color = '#f14c4c'; wb.style.background = 'rgba(241,76,76,0.10)'; }
+        else if (level === 'green') { wb.style.borderColor = '#4ec9b0'; wb.style.color = '#4ec9b0'; wb.style.background = 'rgba(78,201,176,0.10)'; }
+        else { wb.style.borderColor = '#e6b800'; wb.style.color = '#e6b800'; wb.style.background = 'rgba(230,184,0,0.10)'; }
+    }
+
+    function renderDashboard(res) {
+        const v1 = document.getElementById('v1'), s1 = document.getElementById('s1');
+        const v2 = document.getElementById('v2'), s2 = document.getElementById('s2');
+        const v3 = document.getElementById('v3'), s3 = document.getElementById('s3');
+        if (!res.feasible) {
+            v1.textContent = v2.textContent = v3.textContent = '--';
+            s1.textContent = '无可行解（Rp_min > Rp_max）';
+            s2.textContent = '规范上限 ' + fmtTime(state.trMax);
+            s3.textContent = '--';
+            return;
+        }
+        v1.textContent = fmtR(res.rpSel);
+        s1.textContent = '可行域 ' + (res.rpMin / 1e3).toFixed(2) + ' kΩ ~ ' + (res.rpMax / 1e3).toFixed(2) + ' kΩ';
+        v2.textContent = fmtTime(res.trSel);
+        const margin = (state.trMax - res.trSel) / state.trMax * 100;
+        s2.textContent = '规范上限 ' + fmtTime(state.trMax) + ' · 裕量 ' + margin.toFixed(1) + '%';
+        v3.textContent = fmtI(res.iLeak);
+        s3.textContent = '单线静态功耗 ' + parseFloat((res.p * 1e6).toPrecision(3)) + ' μW';
+    }
+
+    function drawChart(res) {
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        const pad = { top: 50, right: 70, bottom: 60, left: 85 };
+        const plotW = w - pad.left - pad.right;
+        const plotH = h - pad.top - pad.bottom;
+        const rLo = 100, rHi = 1e5;
+        const trOf = r => TR_K * r * state.cb;
+        const yMax = Math.max(state.trMax * 1.6, trOf(rHi) * 1.05);
+        const xOf = r => pad.left + (Math.log10(r / rLo) / Math.log10(rHi / rLo)) * plotW;
+        const yOf = t => pad.top + plotH - (t / yMax) * plotH;
+
+        // 网格（每十倍频 1/2/5 + 横向 6 等分）
+        ctx.beginPath(); ctx.strokeStyle = '#2d2d30'; ctx.lineWidth = 1;
+        for (let e = 2; e <= 5; e++) for (const m of [1, 2, 5]) {
+            const r = m * Math.pow(10, e);
+            if (r > rHi) continue;
+            const x = xOf(r);
+            ctx.moveTo(x, pad.top); ctx.lineTo(x, h - pad.bottom);
+        }
+        for (let i = 0; i <= 6; i++) { const y = pad.top + (plotH / 6) * i; ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); }
+        ctx.stroke();
+
+        // 可行域竖带
+        if (res.feasible && res.rpMax > rLo && res.rpMin < rHi) {
+            const x1 = xOf(Math.max(res.rpMin, rLo)), x2 = xOf(Math.min(res.rpMax, rHi));
+            ctx.fillStyle = 'rgba(78,201,176,0.08)';
+            ctx.fillRect(x1, pad.top, x2 - x1, plotH);
+        }
+
+        // 刻度
+        ctx.fillStyle = '#9a9a9a'; ctx.font = '12px Arial'; ctx.textAlign = 'center';
+        [100, 1e3, 1e4, 1e5].forEach(r => ctx.fillText(fmtR(r), xOf(r), h - pad.bottom + 20));
+        ctx.fillText('上拉电阻 Rp（对数）', w / 2, h - 16);
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 6; i++) {
+            const t = yMax / 6 * (6 - i);
+            ctx.fillText(fmtTime(t), pad.left - 8, pad.top + (plotH / 6) * i + 4);
+        }
+        ctx.save(); ctx.translate(24, pad.top + plotH / 2); ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center'; ctx.fillText('上升时间 tr', 0, 0); ctx.restore();
+
+        // 规范上限水平虚线
+        const yT = yOf(state.trMax);
+        ctx.beginPath(); ctx.strokeStyle = '#f14c4c'; ctx.setLineDash([5, 4]); ctx.lineWidth = 1;
+        ctx.moveTo(pad.left, yT); ctx.lineTo(w - pad.right, yT); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = '#f14c4c'; ctx.textAlign = 'right'; ctx.fillText('规范上限 ' + fmtTime(state.trMax), w - pad.right - 6, yT - 5);
+
+        // tr-Rp 曲线（对数采样）
+        ctx.beginPath(); ctx.strokeStyle = '#4fc1ff'; ctx.lineWidth = 3;
+        const N = 400;
+        for (let k = 0; k <= N; k++) {
+            const r = rLo * Math.pow(rHi / rLo, k / N);
+            const x = xOf(r), y = Math.max(pad.top, yOf(trOf(r)));
+            if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // 可行域边界竖虚线
+        const vline = (r, color, label, align) => {
+            if (r < rLo || r > rHi) return;
+            const x = xOf(r);
+            ctx.beginPath(); ctx.strokeStyle = color; ctx.setLineDash([5, 4]); ctx.lineWidth = 1;
+            ctx.moveTo(x, pad.top); ctx.lineTo(x, h - pad.bottom); ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = color; ctx.font = '12px Arial'; ctx.textAlign = align;
+            ctx.fillText(label, align === 'left' ? x + 5 : x - 5, pad.top + 14);
+        };
+        vline(res.rpMin, '#f14c4c', 'VOL/IOL 下限 ' + fmtR(res.rpMin), 'left');
+        vline(res.rpMax, '#4ec9b0', '上升时间上限 ' + fmtR(res.rpMax), 'right');
+
+        // 工作点
+        if (res.feasible && res.rpSel !== null && res.rpSel >= rLo && res.rpSel <= rHi) {
+            const px = xOf(res.rpSel), py = yOf(trOf(res.rpSel));
+            ctx.beginPath(); ctx.fillStyle = '#ff7b00'; ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = '#1e1e1e'; ctx.lineWidth = 1.5; ctx.stroke();
+            const label = 'Rp = ' + fmtR(res.rpSel) + '，tr = ' + fmtTime(trOf(res.rpSel));
+            ctx.font = 'bold 12px Arial';
+            const tw = ctx.measureText(label).width + 14;
+            const lx = Math.max(pad.left + tw / 2, Math.min(w - pad.right - tw / 2, px));
+            let ly = py - 26;
+            if (ly < pad.top + 10) ly = py + 24;
+            if (ly > h - pad.bottom - 14) ly = py - 26;
+            ctx.fillStyle = 'rgba(30,30,30,0.88)'; ctx.fillRect(lx - tw / 2, ly - 9, tw, 18);
+            ctx.strokeStyle = '#ff7b00'; ctx.lineWidth = 1; ctx.strokeRect(lx - tw / 2, ly - 9, tw, 18);
+            ctx.fillStyle = '#ff7b00'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, lx, ly); ctx.textBaseline = 'alphabetic';
+        } else if (!res.feasible) {
+            ctx.fillStyle = '#f14c4c'; ctx.font = 'bold 14px Microsoft YaHei'; ctx.textAlign = 'center';
+            ctx.fillText('无可行解：请减小总线电容或降速', w / 2, pad.top + plotH / 2);
+        }
+
+        // 公式标注
+        ctx.fillStyle = '#4fc1ff'; ctx.fillRect(pad.left + 10, 16, 20, 4);
+        ctx.fillStyle = '#d4d4d4'; ctx.textAlign = 'left'; ctx.font = '12px Arial';
+        ctx.fillText('tr ≈ 0.8473·Rp·Cb（Cb = ' + formatDisplay(state.cb * 1e12) + ' pF）', pad.left + 40, 22);
+    }
+
+    function renderAll() {
+        const res = compute();
+        renderWarn(res);
+        renderDashboard(res);
+        drawChart(res);
+    }
+
+    function exportCSV() {
+        const res = compute();
+        let csv = 'data:text/csv;charset=utf-8,\uFEFF';
+        csv += 'Rp(Ω),tr(ns),可行(是/否)\n';
+        const rLo = 100, rHi = 1e5, samples = 200;
+        for (let i = 0; i < samples; i++) {
+            const r = rLo * Math.pow(rHi / rLo, i / (samples - 1));
+            const tr = TR_K * r * state.cb;
+            const ok = res.feasible && r >= res.rpMin && r <= res.rpMax;
+            csv += r.toPrecision(6) + ',' + (tr * 1e9).toPrecision(6) + ',' + (ok ? '是' : '否') + '\n';
+        }
+        const link = document.createElement('a');
+        link.setAttribute('href', encodeURI(csv));
+        link.setAttribute('download', 'I2C上拉_Vdd' + formatDisplay(state.vdd) + 'V_Cb' + formatDisplay(state.cb * 1e12) + 'pF_tr' + (state.trMax * 1e9) + 'ns.csv');
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    // 速率下拉
+    speedSel.addEventListener('change', function() {
+        state.trMax = parseFloat(this.value) * 1e-9;
+        updateUI();
+        renderAll();
+    });
+
+    // 初始化控件
+    bindLinearControl('slideVdd', 'valVdd', 'unitVdd', 'vdd', 0, 1.2, 5.5, 0.1);
+    bindLinearControl('slideCb', 'valCb', 'unitCb', 'cb', 0, 10e-12, 800e-12, 5e-12);
+
+    updateUI();
+    renderAll();
+</script>
+</body>
+</html>

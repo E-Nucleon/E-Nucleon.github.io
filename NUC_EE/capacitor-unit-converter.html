@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>电容单位换算器</title>
+    <style>
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-tertiary: #2d2d30;
+            --bg-elevated: #333335;
+            --border-color: #3c3c3c;
+            --text-primary: #d4d4d4;
+            --text-secondary: #9a9a9a;
+            --text-muted: #6a6a6a;
+            --accent-cyan: #4fc1ff;
+            --accent-green: #4ec9b0;
+            --accent-blue: #569cd6;
+        }
+        * { box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; background-color: var(--bg-primary); margin: 0; padding: 20px; color: var(--text-primary); min-height: 100vh; }
+        .container { max-width: 700px; margin: 0 auto; background: var(--bg-secondary); padding: 30px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); border: 1px solid var(--border-color); }
+        h1 { text-align: center; color: var(--accent-cyan); font-size: 24px; margin: 0 0 6px; font-weight: 600; letter-spacing: 0.5px; }
+        .subtitle { text-align: center; color: var(--text-secondary); font-size: 13px; margin-bottom: 20px; }
+        .back-btn { position: fixed; top: 16px; left: 16px; z-index: 100; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); font-size: 13px; font-weight: bold; text-decoration: none; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); transition: all 0.2s; }
+        .back-btn:hover { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #1a1a1a; }
+
+        .converter { display: flex; flex-direction: column; gap: 1px; background: var(--border-color); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+
+        .unit-row { display: flex; align-items: center; gap: 14px; background: var(--bg-tertiary); padding: 12px 16px; transition: background 0.15s; }
+        .unit-row.active { background: rgba(79, 193, 255, 0.06); }
+
+        .unit-name { flex: 0 0 72px; font-size: 14px; font-weight: bold; color: var(--text-primary); }
+
+        .input-wrap { flex: 1; display: flex; align-items: center; gap: 8px; min-width: 0; }
+        .val-input { flex: 1; font-family: Consolas, 'Courier New', monospace; font-weight: bold; font-size: 17px; text-align: right; color: var(--accent-cyan); background: var(--bg-primary); border: 1px solid var(--border-color); padding: 7px 10px; border-radius: 5px; transition: border-color 0.2s, box-shadow 0.2s; min-width: 0; }
+        .val-input:focus { outline: none; border-color: var(--accent-cyan); box-shadow: 0 0 0 2px rgba(79, 193, 255, 0.25); }
+        .val-input::-webkit-outer-spin-button, .val-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .val-input { -moz-appearance: textfield; }
+
+        .unit-suffix { flex: 0 0 auto; font-size: 14px; font-weight: bold; color: var(--text-muted); font-family: Consolas, monospace; padding: 0 2px; min-width: 36px; text-align: left; }
+
+        .copy-chip { display: inline-flex; align-items: center; justify-content: center; padding: 6px; background: var(--bg-primary); border: 1px solid var(--border-color); border-radius: 5px; color: var(--text-muted); cursor: pointer; transition: all 0.15s; flex-shrink: 0; }
+        .copy-chip:hover { background: var(--accent-cyan); border-color: var(--accent-cyan); }
+        .copy-chip .copy-icon { width: 18px; height: 18px; display: block; }
+        .copy-chip:hover .copy-icon { filter: brightness(0) saturate(100%) invert(8%) sepia(8%) saturate(0%) hue-rotate(0deg); }
+        .copy-chip.copied { background: var(--accent-green); border-color: var(--accent-green); }
+
+        .formula-bar { margin-top: 22px; padding: 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; }
+        .formula-title { font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; font-weight: bold; }
+        .formula-row { font-size: 13px; color: var(--text-muted); font-family: Consolas, monospace; line-height: 1.9; }
+        .formula-row span { color: var(--accent-cyan); font-weight: bold; }
+
+        .quick-ref { margin-top: 22px; padding: 16px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; }
+        .quick-ref-title { font-size: 13px; color: var(--text-secondary); margin-bottom: 10px; font-weight: bold; }
+        .quick-ref-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 20px; font-size: 12px; color: var(--text-muted); font-family: Consolas, monospace; }
+        .quick-ref-grid .q { color: var(--accent-cyan); }
+    </style>
+</head>
+<body>
+<div class="container">
+    <a class="back-btn" href="index.html" title="返回工具索引">&#8592; 返回目录</a>
+    <h1>&#9889; 电容单位换算器</h1>
+    <p class="subtitle">在 F / mF / μF / nF / pF / kF 之间实时换算</p>
+
+    <div class="converter" id="converter"></div>
+
+    <div class="formula-bar">
+        <div class="formula-title">换算公式</div>
+        <div class="formula-row">
+            <span>1 F</span> = 1,000 mF = 1,000,000 μF = 1,000,000,000 nF = 1,000,000,000,000 pF<br>
+            <span>1 pF</span> = 10⁻³ nF = 10⁻⁶ μF = 10⁻⁹ mF = 10⁻¹² F<br>
+            <span>1 μF</span> = 1,000 nF = 1,000,000 pF
+        </div>
+    </div>
+
+    <div class="quick-ref">
+        <div class="quick-ref-title">常见电容值速查</div>
+        <div class="quick-ref-grid" id="quickRef"></div>
+    </div>
+</div>
+
+<script>
+    const UNITS = [
+        { name: '法拉',   symbol: 'F',  factor: 1e12,  display: 'F' },
+        { name: '毫法',   symbol: 'mF', factor: 1e9,   display: 'mF' },
+        { name: '微法',   symbol: 'μF', factor: 1e6,   display: 'μF' },
+        { name: '纳法',   symbol: 'nF', factor: 1e3,   display: 'nF' },
+        { name: '皮法',   symbol: 'pF', factor: 1,     display: 'pF' }
+    ];
+
+    const converter = document.getElementById('converter');
+
+    UNITS.forEach((u, idx) => {
+        const row = document.createElement('div');
+        row.className = 'unit-row';
+        row.dataset.index = idx;
+        row.innerHTML = `
+            <div class="unit-name">${u.name}</div>
+            <div class="input-wrap">
+                <input type="number" class="val-input" data-index="${idx}" placeholder="0" step="any" min="0">
+                <span class="unit-suffix">${u.symbol}</span>
+            </div>
+            <button class="copy-chip" data-index="${idx}" title="复制带单位的数值">
+                <img src="icon/copy.png" alt="复制" class="copy-icon">
+            </button>
+        `;
+        converter.appendChild(row);
+    });
+
+    const inputs = document.querySelectorAll('.val-input');
+    const rows = document.querySelectorAll('.unit-row');
+
+    function formatValue(v) {
+        if (v === 0) return '0';
+        const abs = Math.abs(v);
+        if (abs >= 1 || abs < 0.001) {
+            if (abs >= 1e12 || abs < 1e-9) return v.toExponential(4);
+            return parseFloat(v.toPrecision(6)).toString();
+        }
+        return parseFloat(v.toPrecision(10)).toString();
+    }
+
+    function updateFrom(idx, rawVal) {
+        const val = parseFloat(rawVal);
+        if (isNaN(val)) return;
+        const base = val * UNITS[idx].factor;
+        inputs.forEach((inp, i) => {
+            if (i !== idx) {
+                const v = base / UNITS[i].factor;
+                inp.value = formatValue(v);
+            }
+        });
+    }
+
+    inputs.forEach((inp, idx) => {
+        inp.addEventListener('input', () => {
+            rows.forEach(r => r.classList.remove('active'));
+            rows[idx].classList.add('active');
+            if (inp.value.trim() === '') {
+                inputs.forEach(i => { if (i !== inp) i.value = ''; });
+                return;
+            }
+            updateFrom(idx, inp.value);
+        });
+
+        inp.addEventListener('focus', () => {
+            rows.forEach(r => r.classList.remove('active'));
+            rows[idx].classList.add('active');
+        });
+
+        inp.addEventListener('blur', () => {
+            rows[idx].classList.remove('active');
+        });
+    });
+
+    document.querySelectorAll('.copy-chip').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const idx = parseInt(btn.dataset.index);
+            const val = inputs[idx].value;
+            if (!val) return;
+            const text = val + ' ' + UNITS[idx].symbol;
+            navigator.clipboard.writeText(text).then(() => {
+                const origHTML = btn.innerHTML;
+                btn.textContent = '✓';
+                btn.classList.add('copied');
+                setTimeout(() => { btn.innerHTML = origHTML; btn.classList.remove('copied'); }, 1200);
+            });
+        });
+    });
+
+    const quickRefData = [
+        { label: '10 pF',  pf: 10 },
+        { label: '100 pF', pf: 100 },
+        { label: '1 nF',   pf: 1000 },
+        { label: '10 nF',  pf: 10000 },
+        { label: '100 nF', pf: 100000 },
+        { label: '1 μF',   pf: 1000000 },
+        { label: '10 μF',  pf: 10000000 },
+        { label: '100 μF', pf: 100000000 },
+        { label: '1 mF',   pf: 1000000000 },
+        { label: '10 mF',  pf: 10000000000 }
+    ];
+
+    const quickRefEl = document.getElementById('quickRef');
+    quickRefData.forEach(item => {
+        const row = document.createElement('div');
+        const nf = item.pf / 1000;
+        const uf = item.pf / 1000000;
+        row.innerHTML = `<span class="q">${item.label}</span> = ${formatValue(nf)} nF = ${formatValue(uf)} μF`;
+        quickRefEl.appendChild(row);
+    });
+</script>
+</body>
+</html>

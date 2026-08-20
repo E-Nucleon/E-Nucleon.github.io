@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>滤波器截止频率计算器</title>
+    <style>
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-tertiary: #2d2d30;
+            --bg-elevated: #333335;
+            --border-color: #3c3c3c;
+            --text-primary: #d4d4d4;
+            --text-secondary: #9a9a9a;
+            --text-muted: #6a6a6a;
+            --accent-orange: #ff7b00;
+            --accent-cyan: #4fc1ff;
+            --accent-red: #f14c4c;
+            --accent-green: #4ec9b0;
+            --accent-blue: #569cd6;
+            --accent-yellow: #e6b800;
+        }
+        body { font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; background-color: var(--bg-primary); margin: 0; padding: 20px; color: var(--text-primary); min-height: 100vh; }
+        .container { max-width: 1000px; margin: 0 auto; background: var(--bg-secondary); padding: 30px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); border: 1px solid var(--border-color); }
+        h1 { text-align: center; color: var(--accent-cyan); font-size: 24px; margin-bottom: 14px; font-weight: 600; letter-spacing: 0.5px; }
+        .back-btn { position: fixed; top: 16px; left: 16px; z-index: 100; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); font-size: 13px; font-weight: bold; text-decoration: none; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); transition: all 0.2s; }
+        .back-btn:hover { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #1a1a1a; }
+
+        .mode-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 22px; }
+        .mode-chip { padding: 7px 16px; border-radius: 16px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-secondary); font-size: 13px; font-family: inherit; cursor: pointer; transition: all 0.15s; user-select: none; }
+        .mode-chip:hover { border-color: var(--accent-cyan); color: var(--text-primary); }
+        .mode-chip.active { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #1a1a1a; font-weight: bold; }
+
+        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 22px; padding: 20px; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color); }
+        .control-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 13px; color: var(--text-secondary); }
+        .control-group .value-row { display: flex; align-items: center; margin-bottom: 12px; }
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent-cyan); height: 6px; }
+        .val-stepper { display: inline-flex; align-items: stretch; }
+        .val-stepper .step-btn { width: 28px; height: 32px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; transition: background 0.15s, color 0.15s; }
+        .val-stepper .step-btn:hover { background: var(--accent-cyan); color: #1a1a1a; }
+        .val-stepper .step-btn:active { background: #7ad4ff; }
+        .val-stepper .step-btn.left { border-right: none; border-radius: 4px 0 0 4px; }
+        .val-stepper .step-btn.right { border-left: none; border-radius: 0 4px 4px 0; }
+        .val-input { width: 80px; font-family: inherit; font-weight: bold; font-size: 15px; text-align: center; color: var(--accent-cyan); background: var(--bg-primary); border: 1px solid var(--border-color); padding: 4px 8px; transition: border-color 0.2s, box-shadow 0.2s; border-radius: 0; }
+        .val-input:focus { outline: none; border-color: var(--accent-cyan); box-shadow: 0 0 0 2px rgba(79, 193, 255, 0.25); z-index: 1; position: relative; }
+        .val-input::-webkit-outer-spin-button, .val-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .val-input { -moz-appearance: textfield; }
+        .unit-select { margin-left: 6px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-family: inherit; font-weight: bold; font-size: 13px; padding: 5px 6px; border-radius: 4px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+        .unit-select:hover, .unit-select:focus { outline: none; border-color: var(--accent-cyan); color: var(--accent-cyan); }
+
+        .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 18px; }
+        .metric-card { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: transform 0.2s, box-shadow 0.2s; }
+        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .metric-card.tau { border-top: 4px solid var(--accent-blue); background: linear-gradient(180deg, rgba(86, 156, 214, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.thresh { border-top: 4px solid var(--accent-orange); background: linear-gradient(180deg, rgba(255, 123, 0, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.full { border-top: 4px solid var(--accent-green); background: linear-gradient(180deg, rgba(78, 201, 176, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-title { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; font-weight: bold; }
+        .metric-value { font-size: 24px; font-weight: 900; }
+        .metric-sub { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+
+        canvas { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; width: 100%; box-shadow: inset 0 0 20px rgba(0,0,0,0.3); margin-bottom: 20px; }
+        .btn-export { display: block; width: 280px; margin: 0 auto; padding: 12px 20px; background-color: var(--accent-cyan); color: #1a1a1a; text-align: center; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+        .btn-export:hover { background-color: #7ad4ff; box-shadow: 0 4px 12px rgba(79, 193, 255, 0.4); }
+
+        .warn-box { display: none; margin-top: 14px; padding: 10px 14px; background: rgba(230,184,0,0.10); border: 1px solid var(--accent-yellow); border-radius: 6px; color: var(--accent-yellow); font-size: 13px; line-height: 1.7; }
+        .note { font-size: 12px; color: var(--text-muted); line-height: 1.7; margin-top: 4px; }
+    </style>
+</head>
+<body>
+<a class="back-btn" href="index.html" title="返回工具索引">&#8592; 返回目录</a>
+<div class="container">
+    <h1>&#12336; 滤波器截止频率计算器</h1>
+
+    <div class="mode-bar" id="modeBar">
+        <button type="button" class="mode-chip active" data-mode="rclp">RC 低通</button>
+        <button type="button" class="mode-chip" data-mode="rchp">RC 高通</button>
+        <button type="button" class="mode-chip" data-mode="lclp">LC 低通（二阶）</button>
+    </div>
+
+    <div class="controls-grid">
+        <div class="control-group" id="grpR">
+            <label>电阻 (R)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valR" class="val-input" step="any" value="10">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitR">
+                    <option value="0">Ω</option>
+                    <option value="1" selected>kΩ</option>
+                    <option value="2">MΩ</option>
+                </select>
+            </div>
+            <input type="range" id="slideR" min="0" max="1000" step="1" value="571">
+        </div>
+        <div class="control-group" id="grpL" style="display:none;">
+            <label>电感 (L)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valL" class="val-input" step="any" value="10">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitL">
+                    <option value="0">nH</option>
+                    <option value="1" selected>&mu;H</option>
+                    <option value="2">mH</option>
+                </select>
+            </div>
+            <input type="range" id="slideL" min="0" max="1000" step="1" value="500">
+        </div>
+        <div class="control-group">
+            <label>电容 (C)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valC" class="val-input" step="any" value="10">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitC">
+                    <option value="0">pF</option>
+                    <option value="1" selected>nF</option>
+                    <option value="2">&mu;F</option>
+                    <option value="3">mF</option>
+                </select>
+            </div>
+            <input type="range" id="slideC" min="0" max="1000" step="1" value="364">
+        </div>
+    </div>
+    <div class="warn-box" id="warnBox"></div>
+    <div class="note">RC：fc = 1 &divide; (2&pi;RC)，一阶 &minus;20 dB/dec；LC：fc = 1 &divide; (2&pi;&radic;(LC))，二阶 &minus;40 dB/dec。截止点处增益 &minus;3 dB（&asymp;0.707）。</div>
+
+    <div class="dashboard">
+        <div class="metric-card tau">
+            <div class="metric-title">截止频率 fc</div>
+            <div class="metric-value" id="v1" style="color:#569cd6;">--</div>
+            <div class="metric-sub" id="s1">--</div>
+        </div>
+        <div class="metric-card thresh">
+            <div class="metric-title" id="t2">截止点容抗 Xc</div>
+            <div class="metric-value" id="v2" style="color:#ff7b00;">--</div>
+            <div class="metric-sub" id="s2">--</div>
+        </div>
+        <div class="metric-card full">
+            <div class="metric-title">衰减斜率</div>
+            <div class="metric-value" id="v3" style="color:#4ec9b0;">--</div>
+            <div class="metric-sub" id="s3">--</div>
+        </div>
+    </div>
+
+    <canvas id="chartCanvas" width="900" height="420"></canvas>
+
+    <button class="btn-export" onclick="exportCSV()">导出幅频响应 (CSV)</button>
+</div>
+
+<script>
+    const UNIT_FACTORS = { r: [1, 1e3, 1e6], c: [1e-12, 1e-9, 1e-6, 1e-3], l: [1e-9, 1e-6, 1e-3] };
+    const state = { mode: 'rclp', r: 1e4, c: 1e-8, l: 1e-5 };
+
+    const canvas = document.getElementById('chartCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function formatDisplay(v, isLog) {
+        if (isLog) {
+            const abs = Math.abs(v);
+            if (abs === 0) return '0';
+            if (abs >= 1e-3 && abs < 1e6) return parseFloat(v.toPrecision(5)).toString();
+            return v.toExponential(3);
+        }
+        return parseFloat(v.toPrecision(4)).toString();
+    }
+    function fmtR(v) {
+        if (v >= 1e6) return parseFloat((v/1e6).toPrecision(4)) + ' MΩ';
+        if (v >= 1e3) return parseFloat((v/1e3).toPrecision(4)) + ' kΩ';
+        if (v >= 1) return parseFloat(v.toPrecision(4)) + ' Ω';
+        return parseFloat((v*1e3).toPrecision(4)) + ' mΩ';
+    }
+    function fmtC(v) {
+        if (v >= 1e-3) return parseFloat((v*1e3).toPrecision(4)) + ' mF';
+        if (v >= 1e-6) return parseFloat((v*1e6).toPrecision(4)) + ' μF';
+        if (v >= 1e-9) return parseFloat((v*1e9).toPrecision(4)) + ' nF';
+        return parseFloat((v*1e12).toPrecision(4)) + ' pF';
+    }
+    function fmtL(v) {
+        if (v >= 1e-3) return parseFloat((v*1e3).toPrecision(4)) + ' mH';
+        if (v >= 1e-6) return parseFloat((v*1e6).toPrecision(4)) + ' μH';
+        return parseFloat((v*1e9).toPrecision(4)) + ' nH';
+    }
+    function fmtHz(f) {
+        if (f >= 1e6) return parseFloat((f/1e6).toPrecision(4)) + ' MHz';
+        if (f >= 1e3) return parseFloat((f/1e3).toPrecision(4)) + ' kHz';
+        if (f >= 1) return parseFloat(f.toPrecision(4)) + ' Hz';
+        return parseFloat((f*1e3).toPrecision(4)) + ' mHz';
+    }
+
+    // 微调按钮固定步进：按显示值量级取整齐步长（0.5 / 0.1 / 0.01 / 0.001）
+    function niceStep(v) {
+        const a = Math.abs(v);
+        if (a >= 10) return 0.5;
+        if (a >= 1) return 0.1;
+        if (a >= 0.1) return 0.01;
+        return 0.001;
+    }
+    function stepDecimals(st) {
+        if (st >= 1) return 0;
+        if (st >= 0.1) return 1;
+        if (st >= 0.01) return 2;
+        return 3;
+    }
+
+    // 滑块 <-> 对数值
+    function sliderToVal(pos, minLog, maxLog) {
+        const t = Math.max(0, Math.min(1000, pos)) / 1000;
+        return Math.pow(10, minLog + t * (maxLog - minLog));
+    }
+    function valToSlider(v, minLog, maxLog) {
+        const logV = Math.log10(Math.max(1e-30, v));
+        const t = (logV - minLog) / (maxLog - minLog);
+        return Math.max(0, Math.min(1000, Math.round(t * 1000)));
+    }
+
+    // ================= 计算 =================
+    function isLC() { return state.mode === 'lclp'; }
+    function fc() {
+        if (isLC()) return 1 / (2 * Math.PI * Math.sqrt(state.l * state.c));
+        return 1 / (2 * Math.PI * state.r * state.c);
+    }
+    function gainDb(f, fc0) {
+        const x = f / fc0;
+        if (state.mode === 'rclp') return -10 * Math.log10(1 + x * x);
+        if (state.mode === 'rchp') return 20 * Math.log10(Math.max(x, 1e-12)) - 10 * Math.log10(1 + x * x);
+        // LC 二阶理想低通（无阻尼）
+        const den = Math.abs(1 - x * x);
+        if (den < 1e-6) return 120;
+        return 20 * Math.log10(1 / den);
+    }
+
+    // 对数控件绑定（R、C、L）
+    function bindLogControl(sliderId, valId, unitId, varName, minLog, maxLog, defaultUnitIdx) {
+        const slider = document.getElementById(sliderId);
+        const numInput = document.getElementById(valId);
+        const unitSel = document.getElementById(unitId);
+        const stepper = numInput.closest('.val-stepper');
+        unitSel.value = String(defaultUnitIdx);
+
+        function getFactor() { return UNIT_FACTORS[varName][parseInt(unitSel.value)]; }
+        function refreshInputDisplay() { numInput.value = formatDisplay(state[varName] / getFactor(), true); }
+        function refreshSliderPosition() { slider.value = valToSlider(state[varName], minLog, maxLog); }
+        function setSiValue(siVal) {
+            siVal = Math.max(Math.pow(10, minLog), Math.min(Math.pow(10, maxLog), siVal));
+            state[varName] = siVal;
+            refreshInputDisplay();
+            refreshSliderPosition();
+            renderAll();
+        }
+
+        slider.oninput = function() {
+            state[varName] = sliderToVal(parseFloat(slider.value), minLog, maxLog);
+            refreshInputDisplay();
+            renderAll();
+        };
+        numInput.oninput = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) return;
+            state[varName] = Math.max(Math.pow(10, minLog), Math.min(Math.pow(10, maxLog), dispVal * getFactor()));
+            refreshSliderPosition();
+            renderAll();
+        };
+        numInput.onchange = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) { refreshInputDisplay(); return; }
+            setSiValue(dispVal * getFactor());
+        };
+        unitSel.onchange = function() { refreshInputDisplay(); numInput.focus(); };
+
+        if (stepper) {
+            let holdTimer = null, holdInterval = null;
+            const holdDelay = 400, holdIntervalMs = 80;
+            stepper.querySelectorAll('.step-btn').forEach(btn => {
+                const dir = parseFloat(btn.dataset.step);
+                const doStep = () => {
+                    const disp = state[varName] / getFactor();
+                    const st = niceStep(disp);
+                    const newDisp = parseFloat((disp + dir * st).toFixed(stepDecimals(st)));
+                    setSiValue(newDisp * getFactor());
+                };
+                btn.addEventListener('mousedown', function(e) {
+                    e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                const stopHold = () => {
+                    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+                    if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+                };
+                btn.addEventListener('mouseup', stopHold);
+                btn.addEventListener('mouseleave', stopHold);
+                btn.addEventListener('touchstart', function(e) { e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                btn.addEventListener('touchend', stopHold);
+                btn.addEventListener('touchcancel', stopHold);
+            });
+        }
+        refreshInputDisplay();
+        refreshSliderPosition();
+    }
+
+    // ================= 工程提示 =================
+    function getWarnings(res) {
+        const w = [];
+        if (isLC()) {
+            w.push('理想 LC 无阻尼：fc 处理论增益无穷大（谐振尖峰），实际电路请考虑电感 DCR / 负载阻尼，必要时加 RC 阻尼。');
+        } else {
+            if (state.r < 100) w.push('R &lt; 100 Ω：前级驱动需提供足够电流（I &asymp; ' + (state.r > 0 ? (1 / state.r).toFixed(1) : '--') + ' A/V），并注意电阻功耗。');
+        }
+        if (res.fc > 50e6) w.push('截止频率超过 50 MHz：布线寄生参数将显著影响实际特性，注意布局与 SMD 选型。');
+        if (state.c >= 1e-6) w.push('电容 &ge; 1 μF：若为电解/钽电容，其 ESL/ESR 会削弱高频特性，建议并联陶瓷电容。');
+        return w;
+    }
+
+    // ================= 渲染 =================
+    function updateModeUI() {
+        document.querySelectorAll('.mode-chip').forEach(c => c.classList.toggle('active', c.dataset.mode === state.mode));
+        const lc = isLC();
+        document.getElementById('grpR').style.display = lc ? 'none' : '';
+        document.getElementById('grpL').style.display = lc ? '' : 'none';
+    }
+
+    function renderWarn(res) {
+        const w = getWarnings(res);
+        const wb = document.getElementById('warnBox');
+        if (w.length) { wb.style.display = 'block'; wb.innerHTML = w.join('<br>'); }
+        else wb.style.display = 'none';
+    }
+
+    function fmtTime(t) {
+        if (t < 1e-6) return (t * 1e9).toPrecision(3) + ' ns';
+        if (t < 1e-3) return (t * 1e6).toPrecision(3) + ' μs';
+        if (t < 1) return (t * 1e3).toPrecision(3) + ' ms';
+        return t.toPrecision(3) + ' s';
+    }
+
+    function renderDashboard(res) {
+        document.getElementById('v1').textContent = fmtHz(res.fc);
+        document.getElementById('s1').textContent = '−3 dB 点 · 周期 ' + fmtTime(1 / res.fc);
+        const t2 = document.getElementById('t2');
+        if (isLC()) {
+            t2.textContent = '特征阻抗 √(L/C)';
+            document.getElementById('v2').textContent = fmtR(Math.sqrt(state.l / state.c));
+            document.getElementById('s2').textContent = fmtL(state.l) + ' / ' + fmtC(state.c);
+        } else {
+            t2.textContent = '截止点容抗 Xc';
+            document.getElementById('v2').textContent = fmtR(res.xc);
+            document.getElementById('s2').textContent = 'Xc = R = ' + fmtR(state.r) + '（一阶特性）';
+        }
+        document.getElementById('v3').textContent = isLC() ? '−40 dB/dec' : '−20 dB/dec';
+        document.getElementById('s3').textContent = isLC() ? '二阶滤波器' : '一阶滤波器 · τ = RC = ' + fmtTime(state.r * state.c);
+    }
+
+    function drawChart(res) {
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        const pad = { top: 50, right: 70, bottom: 60, left: 85 };
+        const plotW = w - pad.left - pad.right;
+        const plotH = h - pad.top - pad.bottom;
+        const fMin = res.fc / 1000, fMax = res.fc * 1000;
+        const dbTop = isLC() ? 20 : 5;
+        const dbBot = isLC() ? -80 : -60;
+        const xOfLog = f => pad.left + (Math.log10(f / fMin) / Math.log10(fMax / fMin)) * plotW;
+        const yOf = db => pad.top + ((dbTop - db) / (dbTop - dbBot)) * plotH;
+
+        // 网格
+        ctx.beginPath(); ctx.strokeStyle = '#2d2d30'; ctx.lineWidth = 1;
+        for (let i = 0; i <= 6; i++) { const x = pad.left + (plotW / 6) * i; ctx.moveTo(x, pad.top); ctx.lineTo(x, h - pad.bottom); }
+        for (let i = 0; i <= 6; i++) { const y = pad.top + (plotH / 6) * i; ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); }
+        ctx.stroke();
+
+        // 刻度：每十倍频程
+        ctx.fillStyle = '#9a9a9a'; ctx.font = '12px Arial'; ctx.textAlign = 'center';
+        for (let d = -3; d <= 3; d++) {
+            const f = res.fc * Math.pow(10, d);
+            ctx.fillText(fmtHz(f), xOfLog(f), h - pad.bottom + 20);
+        }
+        ctx.fillText('频率（对数）', w / 2, h - 16);
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 6; i++) {
+            const db = dbTop - (dbTop - dbBot) / 6 * i;
+            ctx.fillText(db.toFixed(0) + ' dB', pad.left - 8, pad.top + (plotH / 6) * i + 4);
+        }
+
+        // −3 dB 参考线
+        const y3 = yOf(-3);
+        ctx.beginPath(); ctx.strokeStyle = '#6a6a6a'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
+        ctx.moveTo(pad.left, y3); ctx.lineTo(w - pad.right, y3); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = '#6a6a6a'; ctx.textAlign = 'right'; ctx.fillText('−3 dB', w - pad.right - 6, y3 - 5);
+
+        // 幅频曲线
+        ctx.beginPath(); ctx.strokeStyle = '#4fc1ff'; ctx.lineWidth = 3;
+        const N = 600;
+        let started = false;
+        for (let k = 0; k <= N; k++) {
+            const f = fMin * Math.pow(fMax / fMin, k / N);
+            let db = gainDb(f, res.fc);
+            db = Math.max(dbBot, Math.min(dbTop, db));
+            const x = xOfLog(f), y = yOf(db);
+            if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // fc 竖线 + 工作点
+        const xc = xOfLog(res.fc);
+        ctx.beginPath(); ctx.strokeStyle = '#ff7b00'; ctx.setLineDash([5, 4]); ctx.lineWidth = 1;
+        ctx.moveTo(xc, pad.top); ctx.lineTo(xc, h - pad.bottom); ctx.stroke(); ctx.setLineDash([]);
+        ctx.beginPath(); ctx.fillStyle = '#ff7b00'; ctx.arc(xc, y3, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#1e1e1e'; ctx.lineWidth = 1.5; ctx.stroke();
+        const label = 'fc = ' + fmtHz(res.fc);
+        ctx.font = 'bold 12px Arial';
+        const tw = ctx.measureText(label).width + 14;
+        const lx = Math.max(pad.left + tw / 2, Math.min(w - pad.right - tw / 2, xc));
+        ctx.fillStyle = 'rgba(30,30,30,0.88)'; ctx.fillRect(lx - tw / 2, pad.top + 4, tw, 18);
+        ctx.strokeStyle = '#ff7b00'; ctx.lineWidth = 1; ctx.strokeRect(lx - tw / 2, pad.top + 4, tw, 18);
+        ctx.fillStyle = '#ff7b00'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, lx, pad.top + 13); ctx.textBaseline = 'alphabetic';
+
+        // 公式标注
+        ctx.fillStyle = '#4fc1ff'; ctx.fillRect(pad.left + 10, 16, 20, 4);
+        ctx.fillStyle = '#d4d4d4'; ctx.textAlign = 'left'; ctx.font = '12px Arial';
+        const formula = isLC()
+            ? 'LC 低通：fc = 1/(2π√LC) = ' + fmtHz(res.fc) + '（二阶 −40 dB/dec）'
+            : (state.mode === 'rclp' ? 'RC 低通：fc = 1/(2πRC) = ' : 'RC 高通：fc = 1/(2πRC) = ') + fmtHz(res.fc);
+        ctx.fillText(formula, pad.left + 40, 22);
+    }
+
+    function exportCSV() {
+        const res = { fc: fc(), xc: isLC() ? 0 : 1 / (2 * Math.PI * fc() * state.c) };
+        let csv = 'data:text/csv;charset=utf-8,\uFEFF';
+        csv += '频率(Hz),增益(dB)\n';
+        const fMin = res.fc / 1000, fMax = res.fc * 1000;
+        const N = 300;
+        for (let k = 0; k <= N; k++) {
+            const f = fMin * Math.pow(fMax / fMin, k / N);
+            csv += f.toExponential(4) + ',' + gainDb(f, res.fc).toFixed(3) + '\n';
+        }
+        const link = document.createElement('a');
+        link.setAttribute('href', encodeURI(csv));
+        link.setAttribute('download', '滤波器_' + state.mode + '_fc' + res.fc.toExponential(3) + 'Hz.csv');
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    function renderAll() {
+        const f0 = fc();
+        const res = { fc: f0, xc: isLC() ? 0 : 1 / (2 * Math.PI * f0 * state.c) };
+        updateModeUI();
+        renderWarn(res);
+        renderDashboard(res);
+        drawChart(res);
+    }
+
+    // 模式切换
+    document.getElementById('modeBar').addEventListener('click', function(e) {
+        const chip = e.target.closest('.mode-chip');
+        if (!chip) return;
+        state.mode = chip.dataset.mode;
+        renderAll();
+    });
+
+    // 初始化控件：R 1Ω~10MΩ，C 1pF~100mF，L 10nH~10mH
+    bindLogControl('slideR', 'valR', 'unitR', 'r', 0, 7, 1);
+    bindLogControl('slideC', 'valC', 'unitC', 'c', -12, -1, 1);
+    bindLogControl('slideL', 'valL', 'unitL', 'l', -8, -2, 1);
+
+    renderAll();
+</script>
+</body>
+</html>

@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>串并联电阻计算器</title>
+    <style>
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-tertiary: #2d2d30;
+            --bg-elevated: #333335;
+            --border-color: #3c3c3c;
+            --text-primary: #d4d4d4;
+            --text-secondary: #9a9a9a;
+            --text-muted: #6a6a6a;
+            --accent-orange: #ff7b00;
+            --accent-cyan: #4fc1ff;
+            --accent-red: #f14c4c;
+            --accent-green: #4ec9b0;
+            --accent-blue: #569cd6;
+            --accent-yellow: #e6b800;
+        }
+        body { font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; background-color: var(--bg-primary); margin: 0; padding: 20px; color: var(--text-primary); min-height: 100vh; }
+        .container { max-width: 1000px; margin: 0 auto; background: var(--bg-secondary); padding: 30px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); border: 1px solid var(--border-color); }
+        h1 { text-align: center; color: var(--accent-cyan); font-size: 24px; margin-bottom: 14px; font-weight: 600; letter-spacing: 0.5px; }
+        .back-btn { position: fixed; top: 16px; left: 16px; z-index: 100; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); font-size: 13px; font-weight: bold; text-decoration: none; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); transition: all 0.2s; }
+        .back-btn:hover { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #1a1a1a; }
+
+        .mode-bar { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-bottom: 22px; }
+        .mode-chip { padding: 7px 16px; border-radius: 16px; border: 1px solid var(--border-color); background: var(--bg-secondary); color: var(--text-secondary); font-size: 13px; font-family: inherit; cursor: pointer; transition: all 0.15s; user-select: none; }
+        .mode-chip:hover { border-color: var(--accent-cyan); color: var(--text-primary); }
+        .mode-chip.active { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #1a1a1a; font-weight: bold; }
+
+        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 22px; padding: 20px; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color); }
+        .control-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 13px; color: var(--text-secondary); }
+        .control-group .value-row { display: flex; align-items: center; margin-bottom: 12px; }
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent-cyan); height: 6px; }
+        .val-stepper { display: inline-flex; align-items: stretch; }
+        .val-stepper .step-btn { width: 28px; height: 32px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; transition: background 0.15s, color 0.15s; }
+        .val-stepper .step-btn:hover { background: var(--accent-cyan); color: #1a1a1a; }
+        .val-stepper .step-btn:active { background: #7ad4ff; }
+        .val-stepper .step-btn.left { border-right: none; border-radius: 4px 0 0 4px; }
+        .val-stepper .step-btn.right { border-left: none; border-radius: 0 4px 4px 0; }
+        .val-input { width: 80px; font-family: inherit; font-weight: bold; font-size: 15px; text-align: center; color: var(--accent-cyan); background: var(--bg-primary); border: 1px solid var(--border-color); padding: 4px 8px; transition: border-color 0.2s, box-shadow 0.2s; border-radius: 0; }
+        .val-input:focus { outline: none; border-color: var(--accent-cyan); box-shadow: 0 0 0 2px rgba(79, 193, 255, 0.25); z-index: 1; position: relative; }
+        .val-input::-webkit-outer-spin-button, .val-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .val-input { -moz-appearance: textfield; }
+        .unit-select { margin-left: 6px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-family: inherit; font-weight: bold; font-size: 13px; padding: 5px 6px; border-radius: 4px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+        .unit-select:hover, .unit-select:focus { outline: none; border-color: var(--accent-cyan); color: var(--accent-cyan); }
+
+        .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 18px; }
+        .metric-card { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: transform 0.2s, box-shadow 0.2s; }
+        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .metric-card.tau { border-top: 4px solid var(--accent-blue); background: linear-gradient(180deg, rgba(86, 156, 214, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.thresh { border-top: 4px solid var(--accent-orange); background: linear-gradient(180deg, rgba(255, 123, 0, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.full { border-top: 4px solid var(--accent-green); background: linear-gradient(180deg, rgba(78, 201, 176, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-title { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; font-weight: bold; }
+        .metric-value { font-size: 24px; font-weight: 900; }
+        .metric-sub { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+
+        .std-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
+        .std-table th, .std-table td { border: 1px solid var(--border-color); padding: 7px 10px; text-align: center; }
+        .std-table th { background: var(--bg-tertiary); color: var(--text-secondary); font-weight: bold; }
+        .std-table tr.best td { background: rgba(78,201,176,0.12); color: var(--accent-green); font-weight: bold; }
+
+        canvas { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; width: 100%; box-shadow: inset 0 0 20px rgba(0,0,0,0.3); margin-bottom: 20px; }
+        .btn-export { display: block; width: 280px; margin: 0 auto; padding: 12px 20px; background-color: var(--accent-cyan); color: #1a1a1a; text-align: center; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+        .btn-export:hover { background-color: #7ad4ff; box-shadow: 0 4px 12px rgba(79, 193, 255, 0.4); }
+
+        .warn-box { display: none; margin-top: 14px; padding: 10px 14px; background: rgba(230,184,0,0.10); border: 1px solid var(--accent-yellow); border-radius: 6px; color: var(--accent-yellow); font-size: 13px; line-height: 1.7; }
+        .warn-box.red { background: rgba(241,76,76,0.10); border-color: var(--accent-red); color: var(--accent-red); }
+        .warn-box.yellow { background: rgba(230,184,0,0.10); border-color: var(--accent-yellow); color: var(--accent-yellow); }
+        .warn-box.green { background: rgba(78,201,176,0.10); border-color: var(--accent-green); color: var(--accent-green); }
+        .note { font-size: 12px; color: var(--text-muted); line-height: 1.7; margin-top: 4px; }
+    </style>
+</head>
+<body>
+<a class="back-btn" href="index.html" title="返回工具索引">&#8592; 返回目录</a>
+<div class="container">
+    <h1>&#9889; 串并联电阻计算器</h1>
+
+    <div class="mode-bar" id="modeBar">
+        <button type="button" class="mode-chip active" data-mode="par">并联 R1∥R2</button>
+        <button type="button" class="mode-chip" data-mode="ser">串联 R1+R2</button>
+    </div>
+
+    <div class="controls-grid">
+        <div class="control-group">
+            <label>电阻 (R1)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valR1" class="val-input" step="any" value="10">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitR1">
+                    <option value="0">&Omega;</option>
+                    <option value="1" selected>k&Omega;</option>
+                    <option value="2">M&Omega;</option>
+                </select>
+            </div>
+            <input type="range" id="slideR1" min="0" max="1000" step="1" value="571">
+        </div>
+        <div class="control-group">
+            <label>电阻 (R2)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valR2" class="val-input" step="any" value="10">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitR2">
+                    <option value="0">&Omega;</option>
+                    <option value="1" selected>k&Omega;</option>
+                    <option value="2">M&Omega;</option>
+                </select>
+            </div>
+            <input type="range" id="slideR2" min="0" max="1000" step="1" value="571">
+        </div>
+        <div class="control-group">
+            <label>外加电压 (V)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valV" class="val-input" step="any" value="5">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitV"><option value="0" selected>V</option></select>
+            </div>
+            <input type="range" id="slideV" min="0" max="48" step="0.5" value="5">
+        </div>
+    </div>
+    <div class="warn-box" id="warnBox"></div>
+    <div class="note">串联：Req = R1+R2，电流处处相等，分压与阻值成正比；并联：Req = R1&middot;R2/(R1+R2)，电压相等，分流与阻值成反比。下方 E24 组合表按 &plusmn;5% 标称系列匹配。</div>
+
+    <div class="dashboard">
+        <div class="metric-card tau">
+            <div class="metric-title" id="t1">等效电阻 Req</div>
+            <div class="metric-value" id="v1" style="color:#569cd6;">--</div>
+            <div class="metric-sub" id="s1">--</div>
+        </div>
+        <div class="metric-card thresh">
+            <div class="metric-title" id="t2">总电流 I = V/Req</div>
+            <div class="metric-value" id="v2" style="color:#ff7b00;">--</div>
+            <div class="metric-sub" id="s2">--</div>
+        </div>
+        <div class="metric-card full">
+            <div class="metric-title" id="t3">功耗分配 P1 / P2</div>
+            <div class="metric-value" id="v3" style="color:#4ec9b0;">--</div>
+            <div class="metric-sub" id="s3">--</div>
+        </div>
+    </div>
+
+    <div class="note" style="margin-bottom:6px;">E24 标准值组合匹配：对 R1、R2 各取最接近的 2 个标称值（共 4 种组合），按等效电阻与理论值 Req 的对数偏差排序。</div>
+    <table class="std-table" id="stdTable">
+        <thead>
+            <tr><th>R1 标准值</th><th>R2 标准值</th><th>等效电阻</th><th>偏差(%)</th></tr>
+        </thead>
+        <tbody id="stdBody"></tbody>
+    </table>
+
+    <canvas id="chartCanvas" width="900" height="420"></canvas>
+
+    <button class="btn-export" onclick="exportCSV()">导出 R2-Req 曲线 (CSV)</button>
+</div>
+
+<script>
+    const UNIT_FACTORS = { r1: [1, 1e3, 1e6], r2: [1, 1e3, 1e6], v: [1] };
+    const R_MIN_LOG = 0, R_MAX_LOG = 7;   // 1 Ω ~ 10 MΩ
+
+    // E24 尾数（±5% 系列，每十倍频 12 项子集按任务要求取 12 个尾数）
+    const E24_BASE = [1.0, 1.1, 1.2, 1.3, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0];
+    const E24_POOL = [];
+    for (let e = 0; e <= R_MAX_LOG; e++) {
+        for (const m of E24_BASE) {
+            const val = m * Math.pow(10, e);
+            if (val >= 1 && val <= 1e7) E24_POOL.push(val);
+        }
+    }
+
+    const state = { mode: 'par', r1: 1e4, r2: 1e4, v: 5 };
+
+    const canvas = document.getElementById('chartCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // 滑块 <-> 对数值
+    function sliderToVal(pos, minLog, maxLog) {
+        const t = Math.max(0, Math.min(1000, pos)) / 1000;
+        return Math.pow(10, minLog + t * (maxLog - minLog));
+    }
+    function valToSlider(v, minLog, maxLog) {
+        const logV = Math.log10(Math.max(1e-30, v));
+        const t = (logV - minLog) / (maxLog - minLog);
+        return Math.max(0, Math.min(1000, Math.round(t * 1000)));
+    }
+
+    function formatDisplay(v, isLog) {
+        if (isLog) {
+            const abs = Math.abs(v);
+            if (abs === 0) return '0';
+            if (abs >= 1e-3 && abs < 1e6) return parseFloat(v.toPrecision(5)).toString();
+            return v.toExponential(3);
+        }
+        return parseFloat(v.toPrecision(4)).toString();
+    }
+    function fmtR(v) {
+        if (v >= 1e6) return parseFloat((v/1e6).toPrecision(4)) + ' MΩ';
+        if (v >= 1e3) return parseFloat((v/1e3).toPrecision(4)) + ' kΩ';
+        if (v >= 1) return parseFloat(v.toPrecision(4)) + ' Ω';
+        return parseFloat((v*1e3).toPrecision(4)) + ' mΩ';
+    }
+    function fmtI(a) {
+        if (a >= 1) return parseFloat(a.toPrecision(4)) + ' A';
+        if (a >= 1e-3) return parseFloat((a*1e3).toPrecision(4)) + ' mA';
+        return parseFloat((a*1e6).toPrecision(4)) + ' μA';
+    }
+    function fmtP(w) {
+        if (w >= 1) return parseFloat(w.toPrecision(3)) + ' W';
+        return parseFloat((w*1e3).toPrecision(3)) + ' mW';
+    }
+    function fmtVolt(v) {
+        if (v >= 1) return parseFloat(v.toPrecision(4)) + ' V';
+        return parseFloat((v*1e3).toPrecision(4)) + ' mV';
+    }
+
+    // 微调按钮固定步进：按显示值量级取整齐步长（0.5 / 0.1 / 0.01 / 0.001）
+    function niceStep(v) {
+        const a = Math.abs(v);
+        if (a >= 10) return 0.5;
+        if (a >= 1) return 0.1;
+        if (a >= 0.1) return 0.01;
+        return 0.001;
+    }
+    function stepDecimals(st) {
+        if (st >= 1) return 0;
+        if (st >= 0.1) return 1;
+        if (st >= 0.01) return 2;
+        return 3;
+    }
+
+    // ================= 计算 =================
+    function comboReq(a, b) {
+        return state.mode === 'par' ? a * b / (a + b) : a + b;
+    }
+    function compute() {
+        const r1 = state.r1, r2 = state.r2, v = state.v;
+        let req, i, v1, v2, p1, p2;
+        if (state.mode === 'par') {
+            req = r1 * r2 / (r1 + r2);
+            i = v / req;
+            v1 = v; v2 = v;
+            p1 = v * v / r1;
+            p2 = v * v / r2;
+        } else {
+            req = r1 + r2;
+            i = v / req;
+            v1 = i * r1;
+            v2 = i * r2;
+            p1 = i * i * r1;
+            p2 = i * i * r2;
+        }
+        return { req, i, v1, v2, p1, p2, pTot: v * i };
+    }
+
+    // 返回 |log(r/v)| 最小的 n 个 E24 标准值（升序）
+    function nearestE24(r, n) {
+        return E24_POOL.map(v => ({ v, d: Math.abs(Math.log(r / v)) }))
+            .sort((a, b) => a.d - b.d)
+            .slice(0, n)
+            .map(x => x.v)
+            .sort((a, b) => a - b);
+    }
+
+    // 对数控件绑定（R1、R2）
+    function bindLogControl(sliderId, valId, unitId, varName, minLog, maxLog, defaultUnitIdx) {
+        const slider = document.getElementById(sliderId);
+        const numInput = document.getElementById(valId);
+        const unitSel = document.getElementById(unitId);
+        const stepper = numInput.closest('.val-stepper');
+        unitSel.value = String(defaultUnitIdx);
+
+        function getFactor() { return UNIT_FACTORS[varName][parseInt(unitSel.value)]; }
+        function refreshInputDisplay() { numInput.value = formatDisplay(state[varName] / getFactor(), true); }
+        function refreshSliderPosition() { slider.value = valToSlider(state[varName], minLog, maxLog); }
+        function setSiValue(siVal) {
+            siVal = Math.max(Math.pow(10, minLog), Math.min(Math.pow(10, maxLog), siVal));
+            state[varName] = siVal;
+            refreshInputDisplay();
+            refreshSliderPosition();
+            renderAll();
+        }
+
+        slider.oninput = function() {
+            state[varName] = sliderToVal(parseFloat(slider.value), minLog, maxLog);
+            refreshInputDisplay();
+            renderAll();
+        };
+        numInput.oninput = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) return;
+            state[varName] = Math.max(Math.pow(10, minLog), Math.min(Math.pow(10, maxLog), dispVal * getFactor()));
+            refreshSliderPosition();
+            renderAll();
+        };
+        numInput.onchange = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) { refreshInputDisplay(); return; }
+            setSiValue(dispVal * getFactor());
+        };
+        unitSel.onchange = function() { refreshInputDisplay(); numInput.focus(); };
+
+        if (stepper) {
+            let holdTimer = null, holdInterval = null;
+            const holdDelay = 400, holdIntervalMs = 80;
+            stepper.querySelectorAll('.step-btn').forEach(btn => {
+                const dir = parseFloat(btn.dataset.step);
+                const doStep = () => {
+                    const disp = state[varName] / getFactor();
+                    const st = niceStep(disp);
+                    const newDisp = parseFloat((disp + dir * st).toFixed(stepDecimals(st)));
+                    setSiValue(newDisp * getFactor());
+                };
+                btn.addEventListener('mousedown', function(e) {
+                    e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                const stopHold = () => {
+                    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+                    if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+                };
+                btn.addEventListener('mouseup', stopHold);
+                btn.addEventListener('mouseleave', stopHold);
+                btn.addEventListener('touchstart', function(e) { e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                btn.addEventListener('touchend', stopHold);
+                btn.addEventListener('touchcancel', stopHold);
+            });
+        }
+        refreshInputDisplay();
+        refreshSliderPosition();
+    }
+
+    // 线性控件绑定（V）
+    function bindLinearControl(sliderId, valId, unitId, varName, defaultUnitIdx, sliderMin, sliderMax, sliderStep) {
+        const slider = sliderId ? document.getElementById(sliderId) : null;
+        const numInput = document.getElementById(valId);
+        const unitSel = document.getElementById(unitId);
+        const stepper = numInput.closest('.val-stepper');
+        const min = sliderMin !== undefined ? sliderMin : (slider ? parseFloat(slider.min) : 0);
+        const max = sliderMax !== undefined ? sliderMax : (slider ? parseFloat(slider.max) : 100);
+        const step = sliderStep !== undefined ? sliderStep : (slider ? parseFloat(slider.step) : 1);
+        unitSel.value = String(defaultUnitIdx);
+
+        function getFactor() { return UNIT_FACTORS[varName][parseInt(unitSel.value)]; }
+        function refreshInputDisplay() { numInput.value = formatDisplay(state[varName] / getFactor(), false); }
+        function refreshSliderPosition() { if (slider) slider.value = state[varName]; }
+        function setSiValue(siVal) {
+            siVal = Math.max(min, Math.min(max, siVal));
+            const steps = Math.round((siVal - min) / step);
+            siVal = Math.max(min, Math.min(max, min + steps * step));
+            state[varName] = siVal;
+            refreshInputDisplay();
+            refreshSliderPosition();
+            renderAll();
+        }
+
+        if (slider) slider.oninput = function() {
+            state[varName] = parseFloat(slider.value);
+            refreshInputDisplay();
+            renderAll();
+        };
+        numInput.oninput = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) return;
+            state[varName] = Math.max(min, Math.min(max, dispVal * getFactor()));
+            refreshSliderPosition();
+            renderAll();
+        };
+        numInput.onchange = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) { refreshInputDisplay(); return; }
+            setSiValue(dispVal * getFactor());
+        };
+        unitSel.onchange = function() { refreshInputDisplay(); numInput.focus(); };
+
+        if (stepper) {
+            let holdTimer = null, holdInterval = null;
+            const holdDelay = 400, holdIntervalMs = 80;
+            stepper.querySelectorAll('.step-btn').forEach(btn => {
+                const dir = parseFloat(btn.dataset.step);
+                const doStep = () => {
+                    const disp = state[varName] / getFactor();
+                    const stepDisp = step / getFactor();
+                    const st = Math.max(stepDisp, niceStep(disp));
+                    const newDisp = parseFloat((disp + dir * st).toFixed(stepDecimals(st)));
+                    setSiValue(newDisp * getFactor());
+                };
+                btn.addEventListener('mousedown', function(e) {
+                    e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                const stopHold = () => {
+                    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+                    if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+                };
+                btn.addEventListener('mouseup', stopHold);
+                btn.addEventListener('mouseleave', stopHold);
+                btn.addEventListener('touchstart', function(e) { e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                btn.addEventListener('touchend', stopHold);
+                btn.addEventListener('touchcancel', stopHold);
+            });
+        }
+        refreshInputDisplay();
+        refreshSliderPosition();
+    }
+
+    // ================= 渲染 =================
+    function updateModeUI() {
+        document.querySelectorAll('.mode-chip').forEach(c => c.classList.toggle('active', c.dataset.mode === state.mode));
+    }
+
+    function renderWarn(res) {
+        const wb = document.getElementById('warnBox');
+        const red = [], yellow = [];
+        if (res.p1 > 0.25 || res.p2 > 0.25) {
+            red.push('单电阻功耗超过 1/4 W（P1 = ' + fmtP(res.p1) + '，P2 = ' + fmtP(res.p2) + '），请选择更大封装（如 1206/2512 或 1/2 W 以上）或降低外加电压。');
+        }
+        if (res.p1 > 0.125 || res.p2 > 0.125) {
+            yellow.push('功耗接近 1/4 W 额定值的一半（P1 = ' + fmtP(res.p1) + '，P2 = ' + fmtP(res.p2) + '），建议降额使用。');
+        }
+        if (state.mode === 'par' && res.req < 100 && state.v > 5) {
+            yellow.push('等效阻值 ' + fmtR(res.req) + ' 过小，' + formatDisplay(state.v, false) + ' V 下总电流达 ' + fmtI(res.i) + '，注意电源带载能力。');
+        }
+        if (red.length) {
+            wb.className = 'warn-box red';
+            wb.style.display = 'block';
+            wb.innerHTML = red.concat(yellow).join('<br>');
+        } else if (yellow.length) {
+            wb.className = 'warn-box yellow';
+            wb.style.display = 'block';
+            wb.innerHTML = yellow.join('<br>');
+        } else {
+            wb.className = 'warn-box green';
+            wb.style.display = 'block';
+            wb.innerHTML = '功耗在安全范围内。';
+        }
+    }
+
+    function renderDashboard(res) {
+        const par = state.mode === 'par';
+        document.getElementById('t1').textContent = '等效电阻 Req';
+        document.getElementById('v1').textContent = fmtR(res.req);
+        document.getElementById('s1').textContent = par ? '并联 R1∥R2' : '串联 R1+R2';
+
+        document.getElementById('t2').textContent = '总电流 I = V/Req';
+        document.getElementById('v2').textContent = fmtI(res.i);
+        document.getElementById('s2').textContent = '总功耗 P = V·I = ' + fmtP(res.pTot);
+
+        document.getElementById('t3').textContent = '功耗分配 P1 / P2';
+        document.getElementById('v3').textContent = fmtP(res.p1) + ' / ' + fmtP(res.p2);
+        document.getElementById('s3').textContent = par
+            ? '共同电压 V = ' + formatDisplay(state.v, false) + ' V'
+            : '分压 V1 = ' + fmtVolt(res.v1) + '，V2 = ' + fmtVolt(res.v2);
+    }
+
+    function renderStdTable(res) {
+        const tb = document.getElementById('stdBody');
+        const c1 = nearestE24(state.r1, 2);
+        const c2 = nearestE24(state.r2, 2);
+        const rows = [];
+        for (const a of c1) {
+            for (const b of c2) {
+                const rq = comboReq(a, b);
+                rows.push({ a, b, rq, dev: (rq - res.req) / res.req * 100, d: Math.abs(Math.log(rq / res.req)) });
+            }
+        }
+        rows.sort((x, y) => x.d - y.d);
+        let html = '';
+        rows.forEach((row, idx) => {
+            const best = idx === 0;
+            html += '<tr class="' + (best ? 'best' : '') + '">'
+                + '<td>' + fmtR(row.a) + (best ? ' ★' : '') + '</td>'
+                + '<td>' + fmtR(row.b) + '</td>'
+                + '<td>' + fmtR(row.rq) + '</td>'
+                + '<td>' + (row.dev >= 0 ? '+' : '') + row.dev.toFixed(2) + '%</td>'
+                + '</tr>';
+        });
+        tb.innerHTML = html;
+    }
+
+    function drawChart(res) {
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        const pad = { top: 50, right: 70, bottom: 60, left: 85 };
+        const plotW = w - pad.left - pad.right;
+        const plotH = h - pad.top - pad.bottom;
+        const rMin = 1, rMax = 1e7;   // R2 扫描范围 1 Ω ~ 10 MΩ
+        const N = 400;
+
+        // 扫描求纵轴量程
+        let maxReq = 0;
+        for (let k = 0; k <= N; k++) {
+            const r2 = rMin * Math.pow(rMax / rMin, k / N);
+            maxReq = Math.max(maxReq, comboReq(state.r1, r2));
+        }
+        const yMax = Math.max(maxReq * 1.1, 1e-9);
+        const xOf = r => pad.left + (Math.log10(r / rMin) / Math.log10(rMax / rMin)) * plotW;
+        const yOf = rq => pad.top + plotH - (rq / yMax) * plotH;
+
+        // 网格
+        ctx.beginPath(); ctx.strokeStyle = '#2d2d30'; ctx.lineWidth = 1;
+        for (let i = 0; i <= 7; i++) { const x = pad.left + (plotW / 7) * i; ctx.moveTo(x, pad.top); ctx.lineTo(x, h - pad.bottom); }
+        for (let i = 0; i <= 6; i++) { const y = pad.top + (plotH / 6) * i; ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); }
+        ctx.stroke();
+
+        // 刻度
+        ctx.fillStyle = '#9a9a9a'; ctx.font = '12px Arial'; ctx.textAlign = 'center';
+        for (let i = 0; i <= 7; i++) {
+            ctx.fillText(fmtR(Math.pow(10, i)), pad.left + (plotW / 7) * i, h - pad.bottom + 20);
+        }
+        ctx.fillText('电阻 R2（对数）', w / 2, h - 16);
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 6; i++) {
+            const rq = yMax / 6 * (6 - i);
+            ctx.fillText(fmtR(rq), pad.left - 8, pad.top + (plotH / 6) * i + 4);
+        }
+
+        // 并联极限线（Req → R1）
+        if (state.mode === 'par' && state.r1 <= yMax) {
+            const yLim = yOf(state.r1);
+            ctx.beginPath(); ctx.strokeStyle = '#6a6a6a'; ctx.setLineDash([4, 4]); ctx.lineWidth = 1;
+            ctx.moveTo(pad.left, yLim); ctx.lineTo(w - pad.right, yLim); ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = '#6a6a6a'; ctx.textAlign = 'right';
+            ctx.fillText('极限 = R1 = ' + fmtR(state.r1), w - pad.right - 6, yLim - 5);
+        }
+
+        // Req(R2) 曲线（固定 R1）
+        ctx.beginPath(); ctx.strokeStyle = '#4fc1ff'; ctx.lineWidth = 3;
+        for (let k = 0; k <= N; k++) {
+            const r2 = rMin * Math.pow(rMax / rMin, k / N);
+            const x = xOf(r2), y = yOf(comboReq(state.r1, r2));
+            if (k === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // 工作点
+        const px = xOf(state.r2), py = yOf(res.req);
+        ctx.beginPath(); ctx.fillStyle = '#ff7b00'; ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#1e1e1e'; ctx.lineWidth = 1.5; ctx.stroke();
+        const label = 'R2 = ' + fmtR(state.r2) + '，Req = ' + fmtR(res.req);
+        ctx.font = 'bold 12px Arial';
+        const tw = ctx.measureText(label).width + 14;
+        const lx = Math.max(pad.left + tw / 2, Math.min(w - pad.right - tw / 2, px));
+        const ly = py - 26 < pad.top + 10 ? py + 24 : py - 26;
+        ctx.fillStyle = 'rgba(30,30,30,0.88)'; ctx.fillRect(lx - tw / 2, ly - 9, tw, 18);
+        ctx.strokeStyle = '#ff7b00'; ctx.lineWidth = 1; ctx.strokeRect(lx - tw / 2, ly - 9, tw, 18);
+        ctx.fillStyle = '#ff7b00'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, lx, ly); ctx.textBaseline = 'alphabetic';
+
+        // 公式标注
+        ctx.fillStyle = '#4fc1ff'; ctx.fillRect(pad.left + 10, 16, 20, 4);
+        ctx.fillStyle = '#d4d4d4'; ctx.textAlign = 'left'; ctx.font = '12px Arial';
+        const formula = state.mode === 'par'
+            ? '并联：Req = R1·R2/(R1+R2) = ' + fmtR(res.req)
+            : '串联：Req = R1+R2 = ' + fmtR(res.req);
+        ctx.fillText(formula, pad.left + 40, 22);
+    }
+
+    function renderAll() {
+        const res = compute();
+        updateModeUI();
+        renderWarn(res);
+        renderDashboard(res);
+        renderStdTable(res);
+        drawChart(res);
+    }
+
+    function exportCSV() {
+        let csv = 'data:text/csv;charset=utf-8,\uFEFF';
+        csv += 'R2(Ω),Req(Ω)\n';
+        const rMin = 1, rMax = 1e7, samples = 200;
+        for (let k = 0; k <= samples; k++) {
+            const r2 = rMin * Math.pow(rMax / rMin, k / samples);
+            csv += r2.toExponential(4) + ',' + comboReq(state.r1, r2).toExponential(4) + '\n';
+        }
+        const link = document.createElement('a');
+        link.setAttribute('href', encodeURI(csv));
+        link.setAttribute('download', '串并联电阻_' + (state.mode === 'par' ? '并联' : '串联') + '_R1_' + state.r1.toExponential(2) + 'Ω.csv');
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    // 模式切换
+    document.getElementById('modeBar').addEventListener('click', function(e) {
+        const chip = e.target.closest('.mode-chip');
+        if (!chip) return;
+        state.mode = chip.dataset.mode;
+        renderAll();
+    });
+
+    // 初始化控件：R1/R2 1Ω~10MΩ（默认 kΩ 档），V 0~48V
+    bindLogControl('slideR1', 'valR1', 'unitR1', 'r1', R_MIN_LOG, R_MAX_LOG, 1);
+    bindLogControl('slideR2', 'valR2', 'unitR2', 'r2', R_MIN_LOG, R_MAX_LOG, 1);
+    bindLinearControl('slideV', 'valV', 'unitV', 'v', 0, 0, 48, 0.5);
+
+    renderAll();
+</script>
+</body>
+</html>

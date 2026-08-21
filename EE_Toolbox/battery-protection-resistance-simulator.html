@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>带保护板电池内阻叠加与电压跌落模拟器</title>
+    <style>
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-tertiary: #2d2d30;
+            --bg-elevated: #333335;
+            --border-color: #3c3c3c;
+            --text-primary: #d4d4d4;
+            --text-secondary: #9a9a9a;
+            --text-muted: #6a6a6a;
+            --accent-orange: #ff7b00;
+            --accent-cyan: #4fc1ff;
+            --accent-red: #f14c4c;
+            --accent-green: #4ec9b0;
+            --accent-blue: #569cd6;
+        }
+        body { font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; background-color: var(--bg-primary); margin: 0; padding: 20px; color: var(--text-primary); min-height: 100vh; }
+        .container { max-width: 1000px; margin: 0 auto; background: var(--bg-secondary); padding: 30px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); border: 1px solid var(--border-color); }
+        h1 { text-align: center; color: var(--accent-cyan); font-size: 24px; margin-bottom: 30px; font-weight: 600; letter-spacing: 0.5px; }
+        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 25px; padding: 20px; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color); }
+        .control-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 13px; color: var(--text-secondary); }
+        .control-group .value-row { display: flex; align-items: center; margin-bottom: 12px; }
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent-cyan); height: 6px; }
+        .val-display { font-weight: bold; color: var(--accent-cyan); font-size: 16px; }
+        .val-stepper { display: inline-flex; align-items: stretch; }
+        .val-stepper .step-btn { width: 28px; height: 32px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; transition: background 0.15s, color 0.15s; }
+        .val-stepper .step-btn:hover { background: var(--accent-cyan); color: #1a1a1a; }
+        .val-stepper .step-btn:active { background: #7ad4ff; }
+        .val-stepper .step-btn.left { border-right: none; border-radius: 4px 0 0 4px; }
+        .val-stepper .step-btn.right { border-left: none; border-radius: 0 4px 4px 0; }
+        .val-input { width: 50px; font-family: inherit; font-weight: bold; font-size: 16px; text-align: center; color: var(--accent-cyan); background: var(--bg-primary); border: 1px solid var(--border-color); padding: 4px 8px; transition: border-color 0.2s, box-shadow 0.2s; border-radius: 0; }
+        .val-input:focus { outline: none; border-color: var(--accent-cyan); box-shadow: 0 0 0 2px rgba(79, 193, 255, 0.25); z-index: 1; position: relative; }
+        .val-input::-webkit-outer-spin-button, .val-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .val-input { -moz-appearance: textfield; }
+        .unit-label { margin-left: 8px; color: var(--text-muted); font-size: 13px; font-weight: bold; }
+        
+        .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 20px; }
+        .metric-card { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: transform 0.2s, box-shadow 0.2s; }
+        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .metric-card.ideal { border-top: 4px solid var(--text-secondary); }
+        .metric-card.cell { border-top: 4px solid var(--accent-blue); background: linear-gradient(180deg, rgba(86, 156, 214, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.pack { border-top: 4px solid var(--accent-red); background: linear-gradient(180deg, rgba(241, 76, 76, 0.08) 0%, var(--bg-tertiary) 100%); }
+        
+        .metric-title { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; font-weight: bold; }
+        .metric-value { font-size: 24px; font-weight: 900; }
+        .metric-sub { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+        
+        canvas { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; width: 100%; box-shadow: inset 0 0 20px rgba(0,0,0,0.3); margin-bottom: 20px; }
+        .btn-export { display: block; width: 280px; margin: 0 auto; padding: 12px 20px; background-color: var(--accent-cyan); color: #1a1a1a; text-align: center; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+        .btn-export:hover { background-color: #7ad4ff; box-shadow: 0 4px 12px rgba(79, 193, 255, 0.4); }
+
+        /* 返回按钮：固定左上角，返回工具索引 */
+        .back-btn { position: fixed; top: 16px; left: 16px; z-index: 100; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); font-size: 13px; font-weight: bold; text-decoration: none; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); transition: all 0.2s; }
+        .back-btn:hover { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #1a1a1a; }
+    </style>
+</head>
+<body>
+
+<a class="back-btn" id="backBtn" href="index.html" title="返回工具索引">&#8592; 返回目录</a>
+
+<div class="container">
+    <h1>带保护板电池内阻叠加效应模拟器</h1>
+    
+    <div class="controls-grid">
+        <div class="control-group">
+            <label>纯电芯内阻 (R_cell)</label>
+            <div class="value-row">
+                <div class="val-stepper" data-target="valCell" data-step="-1">
+                    <button type="button" class="step-btn left" data-step="-1">◀</button>
+                    <input type="number" id="valCell" class="val-input" min="10" max="300" step="5" value="100">
+                    <button type="button" class="step-btn right" data-step="1">▶</button>
+                </div>
+                <span class="unit-label">mΩ</span>
+            </div>
+            <input type="range" id="slideCell" min="10" max="300" step="5" value="100">
+        </div>
+        <div class="control-group">
+            <label>保护板/线束阻抗 (R_pcm)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">◀</button>
+                    <input type="number" id="valPcm" class="val-input" min="0" max="300" step="5" value="80" style="color:#f14c4c;">
+                    <button type="button" class="step-btn right" data-step="1">▶</button>
+                </div>
+                <span class="unit-label">mΩ</span>
+            </div>
+            <input type="range" id="slidePcm" min="0" max="300" step="5" value="80">
+        </div>
+        <div class="control-group">
+            <label>设备工作电流 (I_load)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">◀</button>
+                    <input type="number" id="valLoad" class="val-input" min="0" max="5000" step="50" value="1500">
+                    <button type="button" class="step-btn right" data-step="1">▶</button>
+                </div>
+                <span class="unit-label">mA</span>
+            </div>
+            <input type="range" id="slideLoad" min="0" max="5000" step="50" value="1500">
+        </div>
+        <div class="control-group">
+            <label>设备关机阈值电压</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">◀</button>
+                    <input type="number" id="valCutoff" class="val-input" min="3.0" max="4.0" step="0.05" value="3.40">
+                    <button type="button" class="step-btn right" data-step="1">▶</button>
+                </div>
+                <span class="unit-label">V</span>
+            </div>
+            <input type="range" id="slideCutoff" min="3.0" max="4.0" step="0.05" value="3.4">
+        </div>
+    </div>
+
+    <div class="dashboard">
+        <div class="metric-card ideal">
+            <div class="metric-title">理想无负载 (OCV)</div>
+            <div class="metric-value" id="socIdeal" style="color:#9a9a9a;">-- %</div>
+            <div class="metric-sub">触碰关机阈值时的真实剩余量</div>
+        </div>
+        <div class="metric-card cell">
+            <div class="metric-title">裸电芯直连 (仅 R_cell)</div>
+            <div class="metric-value" id="socCell" style="color:#569cd6;">-- %</div>
+            <div class="metric-sub">浪费量: <span id="wasteCell" style="font-weight:bold;">--</span> %</div>
+        </div>
+        <div class="metric-card pack">
+            <div class="metric-title">带保护板输出 (R_cell + R_pcm)</div>
+            <div class="metric-value" id="socPack" style="color:#f14c4c;">-- %</div>
+            <div class="metric-sub">总浪费量: <span id="wastePack" style="font-weight:bold;">--</span> %</div>
+        </div>
+    </div>
+
+    <canvas id="chartCanvas" width="900" height="420"></canvas>
+    
+    <button class="btn-export" onclick="exportCSV()">导出对比数据表 (CSV)</button>
+</div>
+
+<script>
+    // 数据模型
+    const ocvPoints = [{soc: 0, v: 3.0}, {soc: 20, v: 3.5}, {soc: 50, v: 3.75}, {soc: 80, v: 4.0}, {soc: 100, v: 4.2}];
+    function getOCV(soc) {
+        if (soc <= 0) return ocvPoints[0].v;
+        if (soc >= 100) return ocvPoints[4].v;
+        for (let i = 0; i < ocvPoints.length - 1; i++) {
+            if (soc >= ocvPoints[i].soc && soc <= ocvPoints[i+1].soc) {
+                const p1 = ocvPoints[i]; const p2 = ocvPoints[i+1];
+                return p1.v + ((soc - p1.soc) / (p2.soc - p1.soc)) * (p2.v - p1.v);
+            }
+        }
+        return 0;
+    }
+
+    // 状态管理
+    const state = {
+        r_cell: 100,
+        r_pcm: 80,
+        i_load: 1500,
+        v_cutoff: 3.4
+    };
+
+    const canvas = document.getElementById('chartCanvas');
+    const ctx = canvas.getContext('2d');
+
+    // 事件绑定：滑块 ↔ 数字输入框 ↔ 步进按钮 双向联动
+    function bindSlider(sliderId, valId, varName, isFloat) {
+        const slider = document.getElementById(sliderId);
+        const numInput = document.getElementById(valId);
+        const min = parseFloat(slider.min);
+        const max = parseFloat(slider.max);
+        const step = parseFloat(slider.step);
+        const stepper = numInput.closest('.val-stepper');
+
+        function format(v) {
+            return isFloat ? v.toFixed(2) : Math.round(v).toString();
+        }
+        function clamp(v) {
+            return Math.max(min, Math.min(max, v));
+        }
+        function setValue(val) {
+            val = clamp(val);
+            state[varName] = val;
+            slider.value = val;
+            numInput.value = format(val);
+            drawChart();
+        }
+
+        slider.oninput = function() {
+            let val = isFloat ? parseFloat(slider.value) : parseInt(slider.value);
+            state[varName] = val;
+            numInput.value = format(val);
+            drawChart();
+        };
+
+        numInput.oninput = function() {
+            let val = isFloat ? parseFloat(numInput.value) : parseInt(numInput.value);
+            if (isNaN(val)) return;
+            let clamped = clamp(val);
+            state[varName] = clamped;
+            slider.value = clamped;
+            drawChart();
+        };
+
+        numInput.onchange = function() {
+            let val = isFloat ? parseFloat(numInput.value) : parseInt(numInput.value);
+            if (isNaN(val)) val = state[varName];
+            val = clamp(val);
+            const steps = Math.round((val - min) / step);
+            val = clamp(min + steps * step);
+            state[varName] = val;
+            numInput.value = format(val);
+            slider.value = val;
+            drawChart();
+        };
+
+        if (stepper) {
+            let holdTimer = null;
+            let holdInterval = null;
+            const holdDelay = 400;
+            const holdIntervalMs = 80;
+
+            stepper.querySelectorAll('.step-btn').forEach(btn => {
+                const dir = parseFloat(btn.dataset.step);
+                const doStep = () => {
+                    let cur = isFloat ? parseFloat(numInput.value) : parseInt(numInput.value);
+                    if (isNaN(cur)) cur = state[varName];
+                    setValue(cur + dir * step);
+                };
+
+                btn.addEventListener('mousedown', function(e) {
+                    e.preventDefault();
+                    doStep();
+                    holdTimer = setTimeout(() => {
+                        holdInterval = setInterval(doStep, holdIntervalMs);
+                    }, holdDelay);
+                });
+                const stopHold = () => {
+                    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+                    if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+                };
+                btn.addEventListener('mouseup', stopHold);
+                btn.addEventListener('mouseleave', stopHold);
+                btn.addEventListener('touchstart', function(e) { e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                btn.addEventListener('touchend', stopHold);
+                btn.addEventListener('touchcancel', stopHold);
+            });
+        }
+    }
+
+    bindSlider('slideCell', 'valCell', 'r_cell', false);
+    bindSlider('slidePcm', 'valPcm', 'r_pcm', false);
+    bindSlider('slideLoad', 'valLoad', 'i_load', false);
+    bindSlider('slideCutoff', 'valCutoff', 'v_cutoff', true);
+
+    // 计算电压
+    function getVCell(soc) {
+        return Math.max(2.5, getOCV(soc) - (state.i_load / 1000) * (state.r_cell / 1000));
+    }
+    
+    function getVPack(soc) {
+        return Math.max(2.5, getOCV(soc) - (state.i_load / 1000) * ((state.r_cell + state.r_pcm) / 1000));
+    }
+
+    function drawChart() {
+        const w = canvas.width; const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        const padding = { top: 60, right: 70, bottom: 70, left: 85 };
+        const plotW = w - padding.left - padding.right; const plotH = h - padding.top - padding.bottom;
+        const vMin = 2.8; const vMax = 4.3;
+
+        const yOf = (v) => h - padding.bottom - (plotH / (vMax - vMin)) * (v - vMin);
+        const yClamp = (v) => Math.max(padding.top, Math.min(h - padding.bottom, yOf(v)));
+
+        // 画网格
+        ctx.beginPath(); ctx.strokeStyle = '#2d2d30'; ctx.lineWidth = 1;
+        for (let i = 0; i <= 10; i++) {
+            let x = padding.left + (plotW / 10) * i;
+            ctx.moveTo(x, padding.top); ctx.lineTo(x, h - padding.bottom);
+        }
+        for (let i = 0; i <= 6; i++) {
+            let v = vMin + ((vMax - vMin) / 6) * i;
+            let y = yOf(v);
+            ctx.moveTo(padding.left, y); ctx.lineTo(w - padding.right, y);
+        }
+        ctx.stroke();
+
+        // 画坐标系和标签
+        ctx.fillStyle = '#9a9a9a'; ctx.font = '12px Arial'; ctx.textAlign = 'center';
+        for (let i = 0; i <= 10; i++) {
+            ctx.fillText(i * 10 + '%', padding.left + (plotW / 10) * i, h - padding.bottom + 20);
+        }
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 6; i++) {
+            let v = vMin + ((vMax - vMin) / 6) * i;
+            let y = yOf(v);
+            ctx.fillText(v.toFixed(2) + 'V', padding.left - 12, y + 4);
+        }
+        ctx.textAlign = 'center'; ctx.fillText("物理真实剩余电量 (SoC %)", w / 2, h - 18);
+        ctx.save(); ctx.translate(28, h / 2); ctx.rotate(-Math.PI / 2);
+        ctx.fillText("测量端电压 (V)", 0, 0); ctx.restore();
+
+        // 寻找关机点
+        let idealSoc = 0, cellSoc = 0, packSoc = 0;
+        for (let s = 100; s >= 0; s -= 0.5) {
+            if (idealSoc === 0 && getOCV(s) <= state.v_cutoff) idealSoc = s;
+            if (cellSoc === 0 && getVCell(s) <= state.v_cutoff) cellSoc = s;
+            if (packSoc === 0 && getVPack(s) <= state.v_cutoff) packSoc = s;
+        }
+        if(packSoc === 0 && getVPack(100) <= state.v_cutoff) packSoc = 100;
+        if(cellSoc === 0 && getVCell(100) <= state.v_cutoff) cellSoc = 100;
+
+        // 更新仪表盘
+        document.getElementById('socIdeal').innerText = idealSoc.toFixed(2) + ' %';
+        document.getElementById('socCell').innerText = cellSoc.toFixed(2) + ' %';
+        document.getElementById('socPack').innerText = packSoc.toFixed(2) + ' %';
+        document.getElementById('wasteCell').innerText = Math.max(0, (cellSoc - idealSoc)).toFixed(2);
+        document.getElementById('wastePack').innerText = Math.max(0, (packSoc - idealSoc)).toFixed(2);
+
+        // 画保护板额外压降阴影 (红色区)
+        ctx.beginPath(); ctx.fillStyle = 'rgba(241, 76, 76, 0.15)';
+        for (let s = 100; s >= 0; s--) {
+            ctx.lineTo(padding.left + (s / 100) * plotW, yClamp(getVCell(s)));
+        }
+        for (let s = 0; s <= 100; s++) {
+            ctx.lineTo(padding.left + (s / 100) * plotW, yClamp(getVPack(s)));
+        }
+        ctx.fill();
+
+        // 画 OCV
+        ctx.beginPath(); ctx.strokeStyle = '#9a9a9a'; ctx.lineWidth = 3; ctx.setLineDash([6, 4]);
+        for (let s = 0; s <= 100; s++) {
+            ctx.lineTo(padding.left + (s / 100) * plotW, yClamp(getOCV(s)));
+        }
+        ctx.stroke(); ctx.setLineDash([]);
+
+        // 画 裸电芯电压
+        ctx.beginPath(); ctx.strokeStyle = '#569cd6'; ctx.lineWidth = 3;
+        for (let s = 0; s <= 100; s++) {
+            ctx.lineTo(padding.left + (s / 100) * plotW, yClamp(getVCell(s)));
+        }
+        ctx.stroke();
+
+        // 画 电池包总电压
+        ctx.beginPath(); ctx.strokeStyle = '#f14c4c'; ctx.lineWidth = 3;
+        for (let s = 0; s <= 100; s++) {
+            ctx.lineTo(padding.left + (s / 100) * plotW, yClamp(getVPack(s)));
+        }
+        ctx.stroke();
+
+        // 阈值线
+        let cutoffY = yClamp(state.v_cutoff);
+        ctx.beginPath(); ctx.strokeStyle = '#ff7b00'; ctx.setLineDash([4, 4]); ctx.lineWidth = 2;
+        ctx.moveTo(padding.left, cutoffY); ctx.lineTo(w - padding.right, cutoffY); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = '#ff7b00'; ctx.textAlign='right'; ctx.fillText("关机阈值 "+state.v_cutoff.toFixed(2)+"V", w - padding.right - 8, cutoffY - 8);
+
+        // 收集所有有效交点
+        const points = [];
+        if (idealSoc <= 100) points.push({ soc: idealSoc, color: '#9a9a9a', label: '理想', align: 'right' });
+        if (cellSoc <= 100) points.push({ soc: cellSoc, color: '#569cd6', label: '裸芯', align: 'left' });
+        if (packSoc <= 100) points.push({ soc: packSoc, color: '#f14c4c', label: '带板', align: 'left' });
+
+        // 计算每个点的标签位置
+        ctx.font = 'bold 12px Arial';
+        const LABEL_H = 16;
+        const ABOVE_Y = cutoffY - 20;
+        const BELOW_Y = cutoffY + 28;
+
+        // 为每个点计算标签位置
+        const tagPositions = points.map(p => {
+            let x = padding.left + (p.soc / 100) * plotW;
+            let text = p.label + ': ' + p.soc.toFixed(2) + '%';
+            let tw = ctx.measureText(text).width + 12;
+            let anchorX = p.align === 'right' ? x - tw / 2 : x + tw / 2;
+            return { x: x, tagX: anchorX, w: tw, side: 'above', y: ABOVE_Y, align: p.align, text: text };
+        });
+
+        // 检查右侧标签之间的重叠
+        for (let i = 0; i < tagPositions.length; i++) {
+            const cur = tagPositions[i];
+            if (cur.align !== 'left') continue;
+            for (let j = i - 1; j >= 0; j--) {
+                const other = tagPositions[j];
+                if (other.align !== 'left') continue;
+                // 两个都是左侧标签，检查是否重叠
+                let curLeft = cur.tagX;
+                let otherRight = other.tagX + other.w;
+                if (curLeft < otherRight + 4) {
+                    // 重叠，把当前的放下方
+                    cur.side = 'below';
+                    cur.y = BELOW_Y;
+                    break;
+                }
+            }
+        }
+
+        // 检查左侧(理想)与右侧标签是否重叠
+        for (let i = 0; i < tagPositions.length; i++) {
+            const left = tagPositions[i];
+            if (left.align !== 'right') continue;
+            for (let j = 0; j < tagPositions.length; j++) {
+                if (i === j) continue;
+                const right = tagPositions[j];
+                if (right.align !== 'left') continue;
+                // 左标签右边界 vs 右标签左边界
+                let leftRight = left.tagX + left.w;
+                let rightLeft = right.tagX - right.w;
+                if (leftRight > rightLeft - 4 && left.side === right.side) {
+                    left.side = left.side === 'above' ? 'below' : 'above';
+                    left.y = left.side === 'above' ? ABOVE_Y : BELOW_Y;
+                    break;
+                }
+            }
+        }
+
+        // 绘制所有点和标签
+        points.forEach((p, i) => {
+            const pos = tagPositions[i];
+            let x = pos.x;
+
+            // 画圆点
+            ctx.beginPath(); ctx.fillStyle = p.color; ctx.arc(x, cutoffY, 5, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#1e1e1e'; ctx.lineWidth = 1; ctx.stroke();
+
+            // 计算标签实际位置
+            let tagX = pos.tagX;
+            let tagY = pos.y;
+            // 边界裁剪
+            if (tagX - pos.w / 2 < padding.left) tagX = padding.left + pos.w / 2;
+            if (tagX + pos.w / 2 > w - padding.right) tagX = w - padding.right - pos.w / 2;
+
+            // 画连接线
+            ctx.beginPath(); ctx.strokeStyle = p.color; ctx.lineWidth = 1;
+            let lineEndY = pos.side === 'above' ? tagY + LABEL_H / 2 : tagY - LABEL_H / 2;
+            ctx.moveTo(x, cutoffY); ctx.lineTo(tagX, lineEndY);
+            ctx.stroke();
+
+            // 画标签背景
+            ctx.fillStyle = 'rgba(30,30,30,0.88)';
+            ctx.fillRect(tagX - pos.w / 2, tagY - LABEL_H / 2, pos.w, LABEL_H);
+            ctx.strokeStyle = p.color; ctx.lineWidth = 1;
+            ctx.strokeRect(tagX - pos.w / 2, tagY - LABEL_H / 2, pos.w, LABEL_H);
+
+            // 画标签文字
+            ctx.fillStyle = p.color;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(pos.text, tagX, tagY);
+            ctx.textBaseline = 'alphabetic';
+        });
+
+        // 图例
+        ctx.fillStyle = '#9a9a9a'; ctx.fillRect(padding.left + 10, padding.top + 15, 20, 4);
+        ctx.fillStyle = '#d4d4d4'; ctx.textAlign='left'; ctx.font = '12px Arial';
+        ctx.fillText("OCV (无负载开路电压)", padding.left + 40, padding.top + 22);
+
+        ctx.fillStyle = '#569cd6'; ctx.fillRect(padding.left + 10, padding.top + 35, 20, 4);
+        ctx.fillStyle = '#d4d4d4';
+        ctx.fillText("测电芯端 (扣除 R_cell 压降)", padding.left + 40, padding.top + 42);
+
+        ctx.fillStyle = '#f14c4c'; ctx.fillRect(padding.left + 10, padding.top + 55, 20, 4);
+        ctx.fillStyle = '#d4d4d4';
+        ctx.fillText("测保护板端 (扣除 R_cell + R_pcm 压降)", padding.left + 40, padding.top + 62);
+    }
+
+    function exportCSV() {
+        let csvContent = "data:text/csv;charset=utf-8,\uFEFF";
+        csvContent += "SoC(%),理想OCV(V),裸电芯端电压(V),保护板输出端电压(V)\n";
+        for(let soc = 100; soc >= 0; soc--) {
+            csvContent += `${soc},${getOCV(soc).toFixed(3)},${getVCell(soc).toFixed(3)},${getVPack(soc).toFixed(3)}\n`;
+        }
+        const encodedUri = encodeURI(csvContent);
+        const link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", `电池包压降对比_电芯${state.r_cell}mΩ_保护板${state.r_pcm}mΩ.csv`);
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    drawChart();
+
+    // 返回按钮：来自索引页时用 history.back() 保留索引页搜索/滚动状态，否则直接打开 index.html
+    document.getElementById("backBtn").addEventListener("click", function (e) {
+        e.preventDefault();
+        var ref = document.referrer.split(/[?#]/)[0];
+        if (ref && (ref.endsWith("index.html") || ref.endsWith("index.htm"))) {
+            history.back();
+        } else {
+            window.location.href = this.getAttribute("href");
+        }
+    });
+</script>
+</body>
+</html>

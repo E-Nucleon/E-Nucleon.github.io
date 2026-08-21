@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>UART 波特率计算器</title>
+    <style>
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-tertiary: #2d2d30;
+            --bg-elevated: #333335;
+            --border-color: #3c3c3c;
+            --text-primary: #d4d4d4;
+            --text-secondary: #9a9a9a;
+            --text-muted: #6a6a6a;
+            --accent-orange: #ff7b00;
+            --accent-cyan: #4fc1ff;
+            --accent-red: #f14c4c;
+            --accent-green: #4ec9b0;
+            --accent-blue: #569cd6;
+            --accent-yellow: #e6b800;
+        }
+        body { font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; background-color: var(--bg-primary); margin: 0; padding: 20px; color: var(--text-primary); min-height: 100vh; }
+        .container { max-width: 1000px; margin: 0 auto; background: var(--bg-secondary); padding: 30px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); border: 1px solid var(--border-color); }
+        h1 { text-align: center; color: var(--accent-cyan); font-size: 24px; margin-bottom: 14px; font-weight: 600; letter-spacing: 0.5px; }
+        .back-btn { position: fixed; top: 16px; left: 16px; z-index: 100; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); font-size: 13px; font-weight: bold; text-decoration: none; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); transition: all 0.2s; }
+        .back-btn:hover { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #1a1a1a; }
+
+        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 22px; padding: 20px; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color); }
+        .control-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 13px; color: var(--text-secondary); }
+        .control-group .value-row { display: flex; align-items: center; margin-bottom: 12px; }
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent-cyan); height: 6px; }
+        .val-stepper { display: inline-flex; align-items: stretch; }
+        .val-stepper .step-btn { width: 28px; height: 32px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; transition: background 0.15s, color 0.15s; }
+        .val-stepper .step-btn:hover { background: var(--accent-cyan); color: #1a1a1a; }
+        .val-stepper .step-btn:active { background: #7ad4ff; }
+        .val-stepper .step-btn.left { border-right: none; border-radius: 4px 0 0 4px; }
+        .val-stepper .step-btn.right { border-left: none; border-radius: 0 4px 4px 0; }
+        .val-input { width: 80px; font-family: inherit; font-weight: bold; font-size: 15px; text-align: center; color: var(--accent-cyan); background: var(--bg-primary); border: 1px solid var(--border-color); padding: 4px 8px; transition: border-color 0.2s, box-shadow 0.2s; border-radius: 0; }
+        .val-input:focus { outline: none; border-color: var(--accent-cyan); box-shadow: 0 0 0 2px rgba(79, 193, 255, 0.25); z-index: 1; position: relative; }
+        .val-input::-webkit-outer-spin-button, .val-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .val-input { -moz-appearance: textfield; }
+        .unit-select { margin-left: 6px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-family: inherit; font-weight: bold; font-size: 13px; padding: 5px 6px; border-radius: 4px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+        .unit-select:hover, .unit-select:focus { outline: none; border-color: var(--accent-cyan); color: var(--accent-cyan); }
+        .sel-wide { margin-left: 0; width: 100%; padding: 8px; }
+
+        .dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 18px; }
+        .metric-card { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: transform 0.2s, box-shadow 0.2s; }
+        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .metric-card.mdiv { border-top: 4px solid var(--accent-blue); background: linear-gradient(180deg, rgba(86, 156, 214, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.mact { border-top: 4px solid var(--accent-orange); background: linear-gradient(180deg, rgba(255, 123, 0, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.merr { border-top: 4px solid var(--accent-green); background: linear-gradient(180deg, rgba(78, 201, 176, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.mclk { border-top: 4px solid var(--accent-cyan); background: linear-gradient(180deg, rgba(79, 193, 255, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-title { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; font-weight: bold; }
+        .metric-value { font-size: 24px; font-weight: 900; }
+        .metric-sub { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+
+        .tbl-title { font-size: 14px; font-weight: bold; color: var(--text-secondary); margin: 6px 0 10px; }
+        .data-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; overflow: hidden; }
+        .data-table th { background: var(--bg-elevated); color: var(--text-secondary); font-size: 12px; padding: 9px 10px; border-bottom: 1px solid var(--border-color); text-align: center; }
+        .data-table td { padding: 8px 10px; text-align: center; border-bottom: 1px solid var(--border-color); color: var(--text-primary); }
+        .data-table tr:last-child td { border-bottom: none; }
+        .data-table tr.best-row { background: rgba(78, 201, 176, 0.14); }
+        .data-table tr.best-row td { font-weight: bold; }
+        .data-table tr.best-row td:first-child { box-shadow: inset 3px 0 0 var(--accent-green); }
+
+        canvas { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; width: 100%; box-shadow: inset 0 0 20px rgba(0,0,0,0.3); margin-bottom: 20px; }
+        .btn-export { display: block; width: 280px; margin: 0 auto; padding: 12px 20px; background-color: var(--accent-cyan); color: #1a1a1a; text-align: center; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+        .btn-export:hover { background-color: #7ad4ff; box-shadow: 0 4px 12px rgba(79, 193, 255, 0.4); }
+
+        .warn-box { display: none; margin-top: 14px; padding: 10px 14px; background: rgba(230,184,0,0.10); border: 1px solid var(--accent-yellow); border-radius: 6px; color: var(--accent-yellow); font-size: 13px; line-height: 1.7; }
+        .note { font-size: 12px; color: var(--text-muted); line-height: 1.7; margin-top: 4px; }
+    </style>
+</head>
+<body>
+<a class="back-btn" href="index.html" title="返回工具索引">&#8592; 返回目录</a>
+<div class="container">
+    <h1>&#128225; UART 波特率计算器</h1>
+
+    <div class="controls-grid">
+        <div class="control-group">
+            <label>UART 时钟 fclk</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valFclk" class="val-input" step="any" value="72">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitFclk">
+                    <option value="0" selected>MHz</option>
+                    <option value="1">kHz</option>
+                </select>
+            </div>
+            <input type="range" id="slideFclk" min="1e6" max="200e6" step="1e6" value="72e6">
+            <div class="note">常见：STM32 APB 时钟 8/72/84/168 MHz</div>
+        </div>
+        <div class="control-group">
+            <label>过采样率</label>
+            <div class="value-row">
+                <select class="unit-select sel-wide" id="osSel">
+                    <option value="16" selected>16&times; 过采样（标准）</option>
+                    <option value="8">8&times; 过采样（高速）</option>
+                </select>
+            </div>
+            <div class="note" id="osNote">--</div>
+        </div>
+        <div class="control-group">
+            <label>目标波特率</label>
+            <div class="value-row">
+                <select class="unit-select sel-wide" id="baudSel">
+                    <option value="9600">9600 bps</option>
+                    <option value="19200">19200 bps</option>
+                    <option value="38400">38400 bps</option>
+                    <option value="57600">57600 bps</option>
+                    <option value="115200" selected>115200 bps</option>
+                    <option value="230400">230400 bps</option>
+                    <option value="460800">460800 bps</option>
+                    <option value="921600">921600 bps</option>
+                </select>
+            </div>
+            <div class="note" id="baudNote">--</div>
+        </div>
+    </div>
+    <div class="warn-box" id="warnBox"></div>
+    <div class="note">分频公式：divisor = round(fclk &divide; (os &times; baud))；实际波特率 actual = fclk &divide; (os &times; divisor)；误差 error = (actual &minus; baud) &divide; baud &times; 100%。UART 收发双方各含独立时钟误差，一般要求单侧误差 &lt; 2%（帧累计 &lt; 4~5%）方可可靠通信。</div>
+
+    <div class="dashboard">
+        <div class="metric-card mdiv">
+            <div class="metric-title">分频系数 divisor</div>
+            <div class="metric-value" id="vDiv" style="color:#569cd6;">--</div>
+            <div class="metric-sub" id="sDiv">--</div>
+        </div>
+        <div class="metric-card mact">
+            <div class="metric-title">实际波特率</div>
+            <div class="metric-value" id="vAct" style="color:#ff7b00;">--</div>
+            <div class="metric-sub" id="sAct">--</div>
+        </div>
+        <div class="metric-card merr" id="cardErr">
+            <div class="metric-title">波特率误差</div>
+            <div class="metric-value" id="vErr" style="color:#4ec9b0;">--</div>
+            <div class="metric-sub" id="sErr">--</div>
+        </div>
+        <div class="metric-card mclk">
+            <div class="metric-title">每 bit 时钟数</div>
+            <div class="metric-value" id="vClk" style="color:#4fc1ff;">--</div>
+            <div class="metric-sub" id="sClk">--</div>
+        </div>
+    </div>
+
+    <div class="tbl-title">常用波特率全表（fclk = <span id="tblFclk">--</span>，过采样 <span id="tblOs">--</span>&times;）</div>
+    <table class="data-table">
+        <thead>
+            <tr><th>目标波特率 (bps)</th><th>分频系数 div</th><th>实际波特率 (bps)</th><th>误差</th><th>判定</th></tr>
+        </thead>
+        <tbody id="tableBody"></tbody>
+    </table>
+
+    <canvas id="chartCanvas" width="900" height="420"></canvas>
+
+    <button class="btn-export" onclick="exportCSV()">导出波特率全表 (CSV)</button>
+</div>
+
+<script>
+    const UNIT_FACTORS = { fclk: [1e6, 1e3] };   // 0: MHz, 1: kHz
+    const BAUDS = [9600, 19200, 38400, 57600, 115200, 230400, 460800, 921600];
+    const ERR_OK = 2;     // |err| < 2% 可靠
+    const ERR_MARG = 4;   // 2% ~ 4% 勉强可用，>= 4% 通信将出错
+
+    const state = { fclk: 72e6, os: 16, baud: 115200 };
+
+    const canvas = document.getElementById('chartCanvas');
+    const ctx = canvas.getContext('2d');
+    const osSel = document.getElementById('osSel');
+    const baudSel = document.getElementById('baudSel');
+
+    function formatDisplay(v) { return parseFloat(v.toPrecision(4)).toString(); }
+    function fmtNum(v) { return String(v).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+    function fmtBaud(v) {
+        const s = v.toFixed(1);
+        const parts = s.split('.');
+        return parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ',') + '.' + parts[1];
+    }
+    function fmtErr(e) { return (e >= 0 ? '+' : '') + e.toFixed(2) + '%'; }
+    function errColor(err) {
+        const a = Math.abs(err);
+        if (a < ERR_OK) return '#4ec9b0';
+        if (a < ERR_MARG) return '#e6b800';
+        return '#f14c4c';
+    }
+    function verdictOf(r) {
+        if (!r.valid) return '不可行';
+        const a = Math.abs(r.err);
+        if (a < ERR_OK) return '可靠';
+        if (a < ERR_MARG) return '勉强可用';
+        return '通信将出错';
+    }
+
+    // 微调按钮固定步进：按显示值量级取整齐步长（0.5 / 0.1 / 0.01 / 0.001）
+    function niceStep(v) {
+        const a = Math.abs(v);
+        if (a >= 10) return 0.5;
+        if (a >= 1) return 0.1;
+        if (a >= 0.1) return 0.01;
+        return 0.001;
+    }
+    function stepDecimals(st) {
+        if (st >= 1) return 0;
+        if (st >= 0.1) return 1;
+        if (st >= 0.01) return 2;
+        return 3;
+    }
+
+    function calcForBaud(fclk, os, baud) {
+        const raw = fclk / (os * baud);
+        const div = Math.round(raw);
+        if (div < 1) return { raw, div, valid: false, actual: NaN, err: NaN };
+        const actual = fclk / (os * div);
+        const err = (actual - baud) / baud * 100;
+        return { raw, div, valid: true, actual, err };
+    }
+
+    function compute() {
+        const cur = calcForBaud(state.fclk, state.os, state.baud);
+        const table = BAUDS.map(b => Object.assign({ baud: b }, calcForBaud(state.fclk, state.os, b)));
+        let best = null;
+        for (const r of table) {
+            if (!r.valid) continue;
+            if (best === null || Math.abs(r.err) < Math.abs(best.err)) best = r;
+        }
+        return { cur, table, best };
+    }
+
+    // 线性控件绑定
+    function bindLinearControl(sliderId, valId, unitId, varName, defaultUnitIdx, sliderMin, sliderMax, sliderStep) {
+        const slider = sliderId ? document.getElementById(sliderId) : null;
+        const numInput = document.getElementById(valId);
+        const unitSel = document.getElementById(unitId);
+        const stepper = numInput.closest('.val-stepper');
+        const min = sliderMin !== undefined ? sliderMin : (slider ? parseFloat(slider.min) : 0);
+        const max = sliderMax !== undefined ? sliderMax : (slider ? parseFloat(slider.max) : 100);
+        const step = sliderStep !== undefined ? sliderStep : (slider ? parseFloat(slider.step) : 1);
+        unitSel.value = String(defaultUnitIdx);
+
+        function getFactor() { return UNIT_FACTORS[varName][parseInt(unitSel.value)]; }
+        function refreshInputDisplay() { numInput.value = formatDisplay(state[varName] / getFactor()); }
+        function refreshSliderPosition() { if (slider) slider.value = state[varName]; }
+        function setSiValue(siVal) {
+            siVal = Math.max(min, Math.min(max, siVal));
+            const steps = Math.round((siVal - min) / step);
+            siVal = Math.max(min, Math.min(max, min + steps * step));
+            state[varName] = siVal;
+            refreshInputDisplay();
+            refreshSliderPosition();
+            renderAll();
+        }
+
+        if (slider) slider.oninput = function() {
+            state[varName] = parseFloat(slider.value);
+            refreshInputDisplay();
+            renderAll();
+        };
+        numInput.oninput = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) return;
+            state[varName] = Math.max(min, Math.min(max, dispVal * getFactor()));
+            refreshSliderPosition();
+            renderAll();
+        };
+        numInput.onchange = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) { refreshInputDisplay(); return; }
+            setSiValue(dispVal * getFactor());
+        };
+        unitSel.onchange = function() { refreshInputDisplay(); numInput.focus(); };
+
+        if (stepper) {
+            let holdTimer = null, holdInterval = null;
+            const holdDelay = 400, holdIntervalMs = 80;
+            stepper.querySelectorAll('.step-btn').forEach(btn => {
+                const dir = parseFloat(btn.dataset.step);
+                const doStep = () => {
+                    const disp = state[varName] / getFactor();
+                    const stepDisp = step / getFactor();
+                    const st = stepDisp >= 1 ? stepDisp : niceStep(disp);
+                    const newDisp = parseFloat((disp + dir * st).toFixed(stepDecimals(st)));
+                    setSiValue(newDisp * getFactor());
+                };
+                btn.addEventListener('mousedown', function(e) {
+                    e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                const stopHold = () => {
+                    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+                    if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+                };
+                btn.addEventListener('mouseup', stopHold);
+                btn.addEventListener('mouseleave', stopHold);
+                btn.addEventListener('touchstart', function(e) { e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                btn.addEventListener('touchend', stopHold);
+                btn.addEventListener('touchcancel', stopHold);
+            });
+        }
+        refreshInputDisplay();
+        refreshSliderPosition();
+    }
+
+    // ================= 渲染 =================
+    function updateUI() {
+        document.getElementById('osNote').textContent = '每 bit 采样 ' + state.os + ' 次；divisor = round(fclk ÷ (' + state.os + ' × baud))';
+        document.getElementById('baudNote').textContent = '目标 ' + fmtNum(state.baud) + ' bps，bit 时间 ' + parseFloat((1e6 / state.baud).toPrecision(4)) + ' μs';
+    }
+
+    function renderWarn(res) {
+        const wb = document.getElementById('warnBox');
+        const cur = res.cur;
+        let msgs, level;
+        if (!cur.valid) {
+            level = 'red';
+            msgs = ['分频系数 divisor = ' + cur.div + ' &lt; 1（原始比值 ' + cur.raw.toFixed(3) + '）：fclk 相对目标波特率过低，无法分频生成，请提高 fclk、改用 8&times; 过采样或降低波特率。'];
+        } else {
+            const a = Math.abs(cur.err);
+            if (a < ERR_OK) {
+                level = 'green';
+                msgs = ['误差 ' + fmtErr(cur.err) + '，在 &plusmn;2% 容差内，通信可靠。'];
+            } else if (a < ERR_MARG) {
+                level = 'yellow';
+                msgs = ['误差 ' + fmtErr(cur.err) + '，处于 2%~4% 区间：勉强可用，长帧/连续传输易累积出错，建议更换时钟频率或降低波特率。'];
+            } else {
+                level = 'red';
+                msgs = ['误差 ' + fmtErr(cur.err) + '，超过 &plusmn;4%：通信将出错，必须更换 fclk、过采样率或波特率组合。'];
+            }
+        }
+        wb.style.display = 'block';
+        wb.innerHTML = msgs.join('<br>');
+        if (level === 'red') { wb.style.borderColor = '#f14c4c'; wb.style.color = '#f14c4c'; wb.style.background = 'rgba(241,76,76,0.10)'; }
+        else if (level === 'green') { wb.style.borderColor = '#4ec9b0'; wb.style.color = '#4ec9b0'; wb.style.background = 'rgba(78,201,176,0.10)'; }
+        else { wb.style.borderColor = '#e6b800'; wb.style.color = '#e6b800'; wb.style.background = 'rgba(230,184,0,0.10)'; }
+    }
+
+    function renderDashboard(res) {
+        const cur = res.cur;
+        const vDiv = document.getElementById('vDiv'), sDiv = document.getElementById('sDiv');
+        const vAct = document.getElementById('vAct'), sAct = document.getElementById('sAct');
+        const vErr = document.getElementById('vErr'), sErr = document.getElementById('sErr');
+        const vClk = document.getElementById('vClk'), sClk = document.getElementById('sClk');
+        const cardErr = document.getElementById('cardErr');
+
+        if (!cur.valid) {
+            vDiv.textContent = cur.div;
+            sDiv.textContent = '原始比值 ' + cur.raw.toFixed(3) + '，取整后 < 1';
+            vAct.textContent = '--'; sAct.textContent = '目标 ' + fmtNum(state.baud) + ' bps';
+            vErr.textContent = '--'; vErr.style.color = '#f14c4c';
+            cardErr.style.borderTopColor = '#f14c4c';
+            sErr.textContent = 'divisor < 1，不可行';
+            vClk.textContent = '--'; sClk.textContent = '--';
+            return;
+        }
+        vDiv.textContent = cur.div;
+        sDiv.textContent = '原始比值 ' + cur.raw.toFixed(4) + ' 四舍五入';
+        vAct.textContent = fmtBaud(cur.actual);
+        sAct.textContent = '目标 ' + fmtNum(state.baud) + ' bps';
+        const c = errColor(cur.err);
+        vErr.textContent = fmtErr(cur.err);
+        vErr.style.color = c;
+        cardErr.style.borderTopColor = c;
+        const a = Math.abs(cur.err);
+        sErr.textContent = a < ERR_OK ? '在 ±2% 容差内' : (a < ERR_MARG ? '2%~4% 勉强可用' : '≥4% 通信将出错');
+        vClk.textContent = fmtNum(state.os * cur.div);
+        sClk.textContent = state.os + ' × ' + cur.div + ' = fclk ÷ actual';
+    }
+
+    function renderTable(res) {
+        document.getElementById('tblFclk').textContent = formatDisplay(state.fclk / 1e6) + ' MHz';
+        document.getElementById('tblOs').textContent = String(state.os);
+        const tb = document.getElementById('tableBody');
+        let html = '';
+        for (const r of res.table) {
+            const isBest = res.best !== null && r.valid && r.baud === res.best.baud;
+            const isCur = r.baud === state.baud;
+            const color = r.valid ? errColor(r.err) : '#f14c4c';
+            const overLimit = !r.valid || Math.abs(r.err) >= ERR_OK;
+            html += '<tr' + (isBest ? ' class="best-row"' : '') + '>';
+            html += '<td style="' + (isCur ? 'color:#4fc1ff;font-weight:bold;' : '') + '">' + fmtNum(r.baud) + (isCur ? ' &#9664;' : '') + '</td>';
+            html += '<td style="' + (!r.valid ? 'color:#f14c4c;font-weight:bold;' : '') + '">' + r.div + '</td>';
+            html += '<td style="' + (overLimit ? 'color:' + color + ';' : '') + '">' + (r.valid ? fmtBaud(r.actual) : '--') + '</td>';
+            html += '<td style="' + (overLimit ? 'color:' + color + ';font-weight:bold;' : 'color:#4ec9b0;') + '">' + (r.valid ? fmtErr(r.err) : '--') + '</td>';
+            html += '<td style="color:' + color + ';">' + verdictOf(r) + (isBest ? ' &#9733;' : '') + '</td>';
+            html += '</tr>';
+        }
+        tb.innerHTML = html;
+    }
+
+    function drawChart(res) {
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        const pad = { top: 50, right: 40, bottom: 60, left: 85 };
+        const plotW = w - pad.left - pad.right;
+        const plotH = h - pad.top - pad.bottom;
+
+        let yAbsMax = ERR_MARG + 0.8;
+        for (const r of res.table) if (r.valid) yAbsMax = Math.max(yAbsMax, Math.abs(r.err) * 1.15);
+        yAbsMax = Math.ceil(yAbsMax * 2) / 2;
+        const zeroY = pad.top + plotH / 2;
+        const yOf = e => zeroY - (e / yAbsMax) * (plotH / 2);
+
+        // 网格（横向每 1%，纵向每档）
+        ctx.beginPath(); ctx.strokeStyle = '#2d2d30'; ctx.lineWidth = 1;
+        for (let e = -Math.floor(yAbsMax); e <= Math.floor(yAbsMax); e++) {
+            const y = yOf(e);
+            ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y);
+        }
+        const n = res.table.length;
+        const slotW = plotW / n;
+        for (let i = 0; i <= n; i++) {
+            const x = pad.left + slotW * i;
+            ctx.moveTo(x, pad.top); ctx.lineTo(x, h - pad.bottom);
+        }
+        ctx.stroke();
+
+        // 安全区竖带 |err| < 2%
+        ctx.fillStyle = 'rgba(78,201,176,0.07)';
+        ctx.fillRect(pad.left, yOf(ERR_OK), plotW, yOf(-ERR_OK) - yOf(ERR_OK));
+
+        // Y 轴刻度
+        ctx.fillStyle = '#9a9a9a'; ctx.font = '12px Arial'; ctx.textAlign = 'right';
+        for (let e = -Math.floor(yAbsMax); e <= Math.floor(yAbsMax); e++) {
+            ctx.fillText((e > 0 ? '+' : '') + e + '%', pad.left - 8, yOf(e) + 4);
+        }
+        ctx.save(); ctx.translate(24, pad.top + plotH / 2); ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center'; ctx.fillText('波特率误差', 0, 0); ctx.restore();
+
+        // ±2% / ±4% 阈值线
+        const thresh = (val, color, label) => {
+            const y = yOf(val);
+            ctx.beginPath(); ctx.strokeStyle = color; ctx.setLineDash([5, 4]); ctx.lineWidth = 1;
+            ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = color; ctx.font = '12px Arial';
+            ctx.textAlign = val > 0 ? 'left' : 'right';
+            ctx.fillText(label, val > 0 ? pad.left + 6 : w - pad.right - 6, y + (val > 0 ? 13 : -5));
+        };
+        thresh(ERR_OK, '#e6b800', '+2%'); thresh(-ERR_OK, '#e6b800', '−2%');
+        thresh(ERR_MARG, '#f14c4c', '+4%'); thresh(-ERR_MARG, '#f14c4c', '−4%');
+
+        // 零线
+        ctx.beginPath(); ctx.strokeStyle = '#9a9a9a'; ctx.lineWidth = 1;
+        ctx.moveTo(pad.left, zeroY); ctx.lineTo(w - pad.right, zeroY); ctx.stroke();
+
+        // 误差柱状图
+        const barW = slotW * 0.52;
+        for (let i = 0; i < n; i++) {
+            const r = res.table[i];
+            const cx = pad.left + slotW * i + slotW / 2;
+            const x = cx - barW / 2;
+            const isBest = res.best !== null && r.valid && r.baud === res.best.baud;
+            const isCur = r.baud === state.baud;
+            let y1, color;
+            if (r.valid) { y1 = yOf(r.err); color = errColor(r.err); }
+            else { y1 = yOf(-yAbsMax); color = '#f14c4c'; }
+            const top = Math.min(zeroY, y1), bh = Math.max(Math.abs(y1 - zeroY), 1);
+            ctx.fillStyle = color;
+            ctx.globalAlpha = isCur ? 1 : 0.75;
+            ctx.fillRect(x, top, barW, bh);
+            ctx.globalAlpha = 1;
+            if (isBest) { ctx.strokeStyle = '#4ec9b0'; ctx.lineWidth = 2; ctx.strokeRect(x - 2, top - 2, barW + 4, bh + 4); }
+            if (isCur) { ctx.strokeStyle = '#4fc1ff'; ctx.lineWidth = 1.5; ctx.strokeRect(x - 1, top - 1, barW + 2, bh + 2); }
+            // 数值标签
+            ctx.fillStyle = color; ctx.font = 'bold 12px Arial'; ctx.textAlign = 'center';
+            if (r.valid) {
+                ctx.fillText(fmtErr(r.err), cx, r.err >= 0 ? top - 6 : top + bh + 14);
+            } else {
+                ctx.fillText('div<1', cx, pad.top + plotH / 2 + 4);
+            }
+            // X 轴标签
+            ctx.fillStyle = isCur ? '#4fc1ff' : '#9a9a9a';
+            ctx.font = (isCur ? 'bold ' : '') + '11px Arial';
+            ctx.fillText(fmtNum(r.baud), cx, h - pad.bottom + 20);
+        }
+        ctx.fillStyle = '#9a9a9a'; ctx.font = '12px Arial'; ctx.textAlign = 'center';
+        ctx.fillText('目标波特率 (bps)', w / 2, h - 16);
+
+        // 标题标注
+        ctx.fillStyle = '#4fc1ff'; ctx.fillRect(pad.left + 10, 16, 20, 4);
+        ctx.fillStyle = '#d4d4d4'; ctx.textAlign = 'left'; ctx.font = '12px Arial';
+        ctx.fillText('8 档波特率误差（fclk = ' + formatDisplay(state.fclk / 1e6) + ' MHz，过采样 ' + state.os + '×）', pad.left + 40, 22);
+    }
+
+    function renderAll() {
+        const res = compute();
+        renderWarn(res);
+        renderDashboard(res);
+        renderTable(res);
+        drawChart(res);
+    }
+
+    function exportCSV() {
+        const res = compute();
+        let csv = 'data:text/csv;charset=utf-8,\uFEFF';
+        csv += 'fclk=' + formatDisplay(state.fclk / 1e6) + 'MHz,过采样=' + state.os + 'x,,,,\n';
+        csv += '目标波特率(bps),分频系数div,实际波特率(bps),误差(%),判定\n';
+        for (const r of res.table) {
+            csv += r.baud + ',' + r.div + ',' +
+                (r.valid ? r.actual.toFixed(2) : '--') + ',' +
+                (r.valid ? r.err.toFixed(3) : '--') + ',' +
+                verdictOf(r) + '\n';
+        }
+        const link = document.createElement('a');
+        link.setAttribute('href', encodeURI(csv));
+        link.setAttribute('download', 'UART波特率_fclk' + formatDisplay(state.fclk / 1e6) + 'MHz_os' + state.os + '.csv');
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    // 过采样下拉
+    osSel.addEventListener('change', function() {
+        state.os = parseInt(this.value);
+        updateUI();
+        renderAll();
+    });
+    // 目标波特率下拉
+    baudSel.addEventListener('change', function() {
+        state.baud = parseInt(this.value);
+        updateUI();
+        renderAll();
+    });
+
+    // 初始化控件
+    bindLinearControl('slideFclk', 'valFclk', 'unitFclk', 'fclk', 0, 1e6, 200e6, 1e6);
+
+    updateUI();
+    renderAll();
+</script>
+</body>
+</html>

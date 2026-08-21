@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>晶振频率误差计算器</title>
+    <style>
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-tertiary: #2d2d30;
+            --bg-elevated: #333335;
+            --border-color: #3c3c3c;
+            --text-primary: #d4d4d4;
+            --text-secondary: #9a9a9a;
+            --text-muted: #6a6a6a;
+            --accent-orange: #ff7b00;
+            --accent-cyan: #4fc1ff;
+            --accent-red: #f14c4c;
+            --accent-green: #4ec9b0;
+            --accent-blue: #569cd6;
+            --accent-yellow: #e6b800;
+        }
+        body { font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; background-color: var(--bg-primary); margin: 0; padding: 20px; color: var(--text-primary); min-height: 100vh; }
+        .container { max-width: 1000px; margin: 0 auto; background: var(--bg-secondary); padding: 30px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); border: 1px solid var(--border-color); }
+        h1 { text-align: center; color: var(--accent-cyan); font-size: 24px; margin-bottom: 14px; font-weight: 600; letter-spacing: 0.5px; }
+        .back-btn { position: fixed; top: 16px; left: 16px; z-index: 100; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); font-size: 13px; font-weight: bold; text-decoration: none; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); transition: all 0.2s; }
+        .back-btn:hover { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #1a1a1a; }
+
+        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 22px; padding: 20px; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color); }
+        .control-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 13px; color: var(--text-secondary); }
+        .control-group .value-row { display: flex; align-items: center; margin-bottom: 12px; }
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent-cyan); height: 6px; }
+        .val-stepper { display: inline-flex; align-items: stretch; }
+        .val-stepper .step-btn { width: 28px; height: 32px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; transition: background 0.15s, color 0.15s; }
+        .val-stepper .step-btn:hover { background: var(--accent-cyan); color: #1a1a1a; }
+        .val-stepper .step-btn:active { background: #7ad4ff; }
+        .val-stepper .step-btn.left { border-right: none; border-radius: 4px 0 0 4px; }
+        .val-stepper .step-btn.right { border-left: none; border-radius: 0 4px 4px 0; }
+        .val-input { width: 80px; font-family: inherit; font-weight: bold; font-size: 15px; text-align: center; color: var(--accent-cyan); background: var(--bg-primary); border: 1px solid var(--border-color); padding: 4px 8px; transition: border-color 0.2s, box-shadow 0.2s; border-radius: 0; }
+        .val-input:focus { outline: none; border-color: var(--accent-cyan); box-shadow: 0 0 0 2px rgba(79, 193, 255, 0.25); z-index: 1; position: relative; }
+        .val-input::-webkit-outer-spin-button, .val-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .val-input { -moz-appearance: textfield; }
+        .unit-select { margin-left: 6px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-family: inherit; font-weight: bold; font-size: 13px; padding: 5px 6px; border-radius: 4px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+        .unit-select:hover, .unit-select:focus { outline: none; border-color: var(--accent-cyan); color: var(--accent-cyan); }
+
+        .dashboard { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 18px; }
+        .metric-card { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: transform 0.2s, box-shadow 0.2s; }
+        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .metric-card.tau { border-top: 4px solid var(--accent-blue); background: linear-gradient(180deg, rgba(86, 156, 214, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.thresh { border-top: 4px solid var(--accent-orange); background: linear-gradient(180deg, rgba(255, 123, 0, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.full { border-top: 4px solid var(--accent-green); background: linear-gradient(180deg, rgba(78, 201, 176, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.time { border-top: 4px solid var(--accent-cyan); background: linear-gradient(180deg, rgba(79, 193, 255, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-title { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; font-weight: bold; }
+        .metric-value { font-size: 24px; font-weight: 900; }
+        .metric-sub { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+
+        canvas { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; width: 100%; box-shadow: inset 0 0 20px rgba(0,0,0,0.3); margin-bottom: 20px; }
+        .btn-export { display: block; width: 280px; margin: 0 auto; padding: 12px 20px; background-color: var(--accent-cyan); color: #1a1a1a; text-align: center; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+        .btn-export:hover { background-color: #7ad4ff; box-shadow: 0 4px 12px rgba(79, 193, 255, 0.4); }
+
+        .warn-box { display: none; margin-top: 14px; padding: 10px 14px; border-radius: 6px; font-size: 13px; line-height: 1.7; border: 1px solid transparent; }
+        .warn-box.red { display: block; background: rgba(241,76,76,0.10); border-color: var(--accent-red); color: var(--accent-red); }
+        .warn-box.yellow { display: block; background: rgba(230,184,0,0.10); border-color: var(--accent-yellow); color: var(--accent-yellow); }
+        .warn-box.green { display: block; background: rgba(78,201,176,0.10); border-color: var(--accent-green); color: var(--accent-green); }
+        .note { font-size: 12px; color: var(--text-muted); line-height: 1.7; margin-top: 4px; }
+    </style>
+</head>
+<body>
+<a class="back-btn" href="index.html" title="返回工具索引">&#8592; 返回目录</a>
+<div class="container">
+    <h1>&#128338; 晶振频率误差计算器</h1>
+
+    <div class="controls-grid">
+        <div class="control-group">
+            <label>标称频率 (f0)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valF0" class="val-input" step="any" value="8">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitF0">
+                    <option value="0" selected>MHz</option>
+                    <option value="1">kHz</option>
+                </select>
+            </div>
+            <input type="range" id="slideF0" min="0.01" max="100" step="0.0001" value="8">
+            <div class="note">晶振标称频率，常见 8 / 12 / 16 / 25 MHz</div>
+        </div>
+        <div class="control-group">
+            <label>初始偏差 (常温精度)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valInit" class="val-input" step="any" value="20">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitInit"><option value="0" selected>ppm</option></select>
+            </div>
+            <input type="range" id="slideInit" min="0" max="200" step="1" value="20">
+            <div class="note">25°C 初始校准精度，普通 XTAL 典型 ±10 ~ ±50 ppm</div>
+        </div>
+        <div class="control-group">
+            <label>温度漂移</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valDrift" class="val-input" step="any" value="10">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitDrift"><option value="0" selected>ppm/&#176;C</option></select>
+            </div>
+            <input type="range" id="slideDrift" min="0" max="50" step="0.5" value="10">
+            <div class="note">全温度范围频率温度系数，典型 ±10 ppm/&#176;C</div>
+        </div>
+        <div class="control-group">
+            <label>温度变化 (&#916;T)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valDt" class="val-input" step="any" value="25">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitDt"><option value="0" selected>&#176;C</option></select>
+            </div>
+            <input type="range" id="slideDt" min="0" max="60" step="1" value="25">
+            <div class="note">相对校准温度的最大温升/温降幅度</div>
+        </div>
+    </div>
+    <div class="warn-box" id="warnBox"></div>
+    <div class="note">PPM = 百万分之一 (10&#8315;&#8310;)。总误差按最坏情况线性叠加 |初始偏差| + |温度漂移 &times; &#916;T|；RSS = &radic;(初始偏差&sup2; + (温度漂移&middot;&#916;T)&sup2;) 为统计估计，通常更接近实际。&#916;f = f0 &times; ppm / 10&#8310;；1 ppm 对应每天约 0.0864 秒走时漂移。</div>
+
+    <div class="dashboard">
+        <div class="metric-card thresh">
+            <div class="metric-title">总误差 (最坏叠加)</div>
+            <div class="metric-value" id="v1" style="color:#ff7b00;">--</div>
+            <div class="metric-sub" id="s1">--</div>
+        </div>
+        <div class="metric-card tau">
+            <div class="metric-title">RSS 误差 (统计)</div>
+            <div class="metric-value" id="v2" style="color:#569cd6;">--</div>
+            <div class="metric-sub" id="s2">--</div>
+        </div>
+        <div class="metric-card full">
+            <div class="metric-title">频率偏差 &#916;f</div>
+            <div class="metric-value" id="v3" style="color:#4ec9b0;">--</div>
+            <div class="metric-sub" id="s3">--</div>
+        </div>
+        <div class="metric-card time">
+            <div class="metric-title">时间漂移 (每天)</div>
+            <div class="metric-value" id="v4" style="color:#4fc1ff;">--</div>
+            <div class="metric-sub" id="s4">--</div>
+        </div>
+    </div>
+
+    <canvas id="chartCanvas" width="900" height="420"></canvas>
+
+    <button class="btn-export" onclick="exportCSV()">导出数据 (CSV)</button>
+</div>
+
+<script>
+    const UNIT_FACTORS = {
+        f0: [1e6, 1e3],
+        init: [1],
+        drift: [1],
+        dt: [1]
+    };
+
+    const state = { f0: 8e6, init: 20, drift: 10, dt: 25 };
+
+    const canvas = document.getElementById('chartCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function formatDisplay(v) { return parseFloat(v.toPrecision(4)).toString(); }
+    function fmtFreq(hz) {
+        if (hz >= 1e6) return parseFloat((hz / 1e6).toPrecision(4)) + ' MHz';
+        if (hz >= 1e3) return parseFloat((hz / 1e3).toPrecision(4)) + ' kHz';
+        return parseFloat(hz.toPrecision(4)) + ' Hz';
+    }
+    function fmtPPM(v) { return parseFloat(v.toPrecision(4)) + ' ppm'; }
+    function fmtNum(v) { return parseFloat(v.toPrecision(6)).toString(); }
+
+    // 微调按钮固定步进：按显示值量级取整齐步长（0.5 / 0.1 / 0.01 / 0.001）
+    function niceStep(v) {
+        const a = Math.abs(v);
+        if (a >= 10) return 0.5;
+        if (a >= 1) return 0.1;
+        if (a >= 0.1) return 0.01;
+        return 0.001;
+    }
+    function stepDecimals(st) {
+        if (st >= 1) return 0;
+        if (st >= 0.1) return 1;
+        if (st >= 0.01) return 2;
+        return 3;
+    }
+
+    // ================= 计算 =================
+    function compute() {
+        const initTerm = Math.abs(state.init);
+        const tempTerm = Math.abs(state.drift * state.dt);
+        const totalPpm = initTerm + tempTerm;                          // 最坏线性叠加
+        const rssPpm = Math.sqrt(state.init * state.init + Math.pow(state.drift * state.dt, 2));
+        const df = state.f0 * totalPpm / 1e6;
+        const secPerDay = totalPpm * 0.0864;
+        return { totalPpm: totalPpm, rssPpm: rssPpm, df: df, secPerDay: secPerDay };
+    }
+
+    // 线性控件绑定（滑块刻度为显示单位 index 0，state 存基准单位值）
+    function bindLinearControl(sliderId, valId, unitId, varName, defaultUnitIdx, sliderMin, sliderMax, sliderStep) {
+        const slider = sliderId ? document.getElementById(sliderId) : null;
+        const numInput = document.getElementById(valId);
+        const unitSel = document.getElementById(unitId);
+        const stepper = numInput.closest('.val-stepper');
+        const min = sliderMin !== undefined ? sliderMin : (slider ? parseFloat(slider.min) : 0);
+        const max = sliderMax !== undefined ? sliderMax : (slider ? parseFloat(slider.max) : 100);
+        const step = sliderStep !== undefined ? sliderStep : (slider ? parseFloat(slider.step) : 1);
+        unitSel.value = String(defaultUnitIdx);
+
+        function getFactor() { return UNIT_FACTORS[varName][parseInt(unitSel.value)]; }
+        function getSliderFactor() { return UNIT_FACTORS[varName][0]; }
+        function refreshInputDisplay() { numInput.value = formatDisplay(state[varName] / getFactor()); }
+        function refreshSliderPosition() { if (slider) slider.value = state[varName] / getSliderFactor(); }
+        function setSiValue(siVal) {
+            const f = getSliderFactor();
+            let disp = Math.max(min, Math.min(max, siVal / f));
+            disp = Math.max(min, Math.min(max, min + Math.round((disp - min) / step) * step));
+            state[varName] = disp * f;
+            refreshInputDisplay();
+            refreshSliderPosition();
+            renderAll();
+        }
+
+        if (slider) slider.oninput = function() {
+            state[varName] = parseFloat(slider.value) * getSliderFactor();
+            refreshInputDisplay();
+            renderAll();
+        };
+        numInput.oninput = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) return;
+            state[varName] = Math.max(min * getSliderFactor(), Math.min(max * getSliderFactor(), dispVal * getFactor()));
+            refreshSliderPosition();
+            renderAll();
+        };
+        numInput.onchange = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) { refreshInputDisplay(); return; }
+            setSiValue(dispVal * getFactor());
+        };
+        unitSel.onchange = function() { refreshInputDisplay(); numInput.focus(); };
+
+        if (stepper) {
+            const holdDelay = 400, holdIntervalMs = 80;
+            stepper.querySelectorAll('.step-btn').forEach(btn => {
+                let holdTimer = null, holdInterval = null;
+                const dir = parseFloat(btn.dataset.step);
+                const doStep = () => {
+                    const disp = state[varName] / getFactor();
+                    const stepDisp = step * getSliderFactor() / getFactor();
+                    const st = Math.max(stepDisp, niceStep(disp));
+                    const newDisp = parseFloat((disp + dir * st).toFixed(stepDecimals(st)));
+                    setSiValue(newDisp * getFactor());
+                };
+                const stopHold = () => {
+                    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+                    if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+                };
+                btn.addEventListener('mousedown', function(e) {
+                    e.preventDefault(); doStep(); stopHold();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                btn.addEventListener('mouseup', stopHold);
+                btn.addEventListener('mouseleave', stopHold);
+                btn.addEventListener('touchstart', function(e) { e.preventDefault(); doStep(); stopHold();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                btn.addEventListener('touchend', stopHold);
+                btn.addEventListener('touchcancel', stopHold);
+            });
+        }
+        refreshInputDisplay();
+        refreshSliderPosition();
+    }
+
+    // ================= 渲染 =================
+    function renderWarn(res) {
+        const wb = document.getElementById('warnBox');
+        let level, msg;
+        if (res.totalPpm <= 100) {
+            level = 'green';
+            msg = '精密级：总误差 ' + fmtPPM(res.totalPpm) + ' &le; 100 ppm，满足 RTC、低速 UART 等常规需求';
+        } else if (res.totalPpm <= 500) {
+            level = 'yellow';
+            msg = '常规 MCU 可用，高速 UART 需复核：总误差 ' + fmtPPM(res.totalPpm) + ' 处于 100 ~ 500 ppm 区间，高波特率通信建议实测眼图或补偿';
+        } else {
+            level = 'red';
+            msg = '误差过大：总误差 ' + fmtPPM(res.totalPpm) + ' 超过 500 ppm，UART 易丢帧、RTC 走时偏差大，建议改用 TCXO 或做频率校准';
+        }
+        wb.className = 'warn-box ' + level;
+        wb.innerHTML = msg;
+    }
+
+    function renderDashboard(res) {
+        document.getElementById('v1').textContent = fmtPPM(res.totalPpm);
+        document.getElementById('s1').textContent = '|初始| + |温漂 × ΔT|';
+        document.getElementById('v2').textContent = fmtPPM(res.rssPpm);
+        document.getElementById('s2').textContent = '√(初始² + (温漂·ΔT)²)';
+        document.getElementById('v3').textContent = fmtFreq(res.df);
+        document.getElementById('s3').textContent = 'f0 = ' + fmtFreq(state.f0) + '，Δf = f0·ppm/10⁶';
+        document.getElementById('v4').textContent = parseFloat(res.secPerDay.toPrecision(4)) + ' s';
+        document.getElementById('s4').textContent = '秒/天 ≈ ppm × 0.0864';
+    }
+
+    function drawChart(res) {
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        const pad = { top: 50, right: 70, bottom: 60, left: 85 };
+        const plotW = w - pad.left - pad.right;
+        const plotH = h - pad.top - pad.bottom;
+        const tMin = 0, tMax = 60;                                   // 横轴 ΔT 扫描 0~60°C
+        const ppmAt = t => Math.abs(state.init) + Math.abs(state.drift) * t;
+        const yMax = Math.max(ppmAt(tMax), 500) * 1.1;               // 保证 500 ppm 阈值可见
+        const xOf = t => pad.left + ((t - tMin) / (tMax - tMin)) * plotW;
+        const yOf = p => pad.top + plotH - (Math.max(0, p) / yMax) * plotH;
+
+        // 网格
+        ctx.beginPath(); ctx.strokeStyle = '#2d2d30'; ctx.lineWidth = 1;
+        for (let d = 0; d <= 6; d++) { const x = pad.left + (plotW / 6) * d; ctx.moveTo(x, pad.top); ctx.lineTo(x, h - pad.bottom); }
+        for (let i = 0; i <= 6; i++) { const y = pad.top + (plotH / 6) * i; ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); }
+        ctx.stroke();
+
+        // 刻度
+        ctx.fillStyle = '#9a9a9a'; ctx.font = '12px Arial'; ctx.textAlign = 'center';
+        for (let d = 0; d <= 6; d++) ctx.fillText(String(tMin + (tMax - tMin) / 6 * d), pad.left + (plotW / 6) * d, h - pad.bottom + 20);
+        ctx.fillText('温度变化 ΔT (°C)', w / 2, h - 16);
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 6; i++) {
+            const p = (yMax / 6) * (6 - i);
+            ctx.fillText(parseFloat(p.toPrecision(3)), pad.left - 8, pad.top + (plotH / 6) * i + 4);
+        }
+        ctx.save(); ctx.translate(24, pad.top + plotH / 2); ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center'; ctx.fillText('总误差 (ppm)', 0, 0); ctx.restore();
+
+        // 阈值线（绿色 100 ppm / 红色 500 ppm）
+        const drawThresh = (ppm, color, label) => {
+            const y = yOf(ppm);
+            ctx.beginPath(); ctx.strokeStyle = color; ctx.setLineDash([6, 4]); ctx.lineWidth = 1.5;
+            ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = color; ctx.font = '12px Arial'; ctx.textAlign = 'right';
+            ctx.fillText(label, w - pad.right - 6, y - 6);
+        };
+        drawThresh(100, '#4ec9b0', '100 ppm 精密级阈值');
+        drawThresh(500, '#f14c4c', '500 ppm 上限阈值');
+
+        // 曲线：总 ppm 随 ΔT 扫描
+        ctx.beginPath(); ctx.strokeStyle = '#4fc1ff'; ctx.lineWidth = 3;
+        const N = 240;
+        for (let i = 0; i <= N; i++) {
+            const t = tMin + (tMax - tMin) * i / N;
+            const x = xOf(t), y = yOf(ppmAt(t));
+            if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // 当前工作点（橙色）
+        const px = Math.max(pad.left, Math.min(w - pad.right, xOf(state.dt)));
+        const py = Math.max(pad.top, Math.min(h - pad.bottom, yOf(res.totalPpm)));
+        ctx.beginPath(); ctx.fillStyle = '#ff7b00'; ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#1e1e1e'; ctx.lineWidth = 1.5; ctx.stroke();
+        const label = 'ΔT = ' + formatDisplay(state.dt) + '°C → ' + fmtPPM(res.totalPpm);
+        ctx.font = 'bold 12px Arial';
+        const tw = ctx.measureText(label).width + 14;
+        const lx = Math.max(pad.left + tw / 2, Math.min(w - pad.right - tw / 2, px));
+        const ly = py - 26 < pad.top + 10 ? py + 24 : py - 26;
+        ctx.fillStyle = 'rgba(30,30,30,0.88)'; ctx.fillRect(lx - tw / 2, ly - 9, tw, 18);
+        ctx.strokeStyle = '#ff7b00'; ctx.lineWidth = 1; ctx.strokeRect(lx - tw / 2, ly - 9, tw, 18);
+        ctx.fillStyle = '#ff7b00'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, lx, ly); ctx.textBaseline = 'alphabetic';
+
+        // 公式标注
+        ctx.fillStyle = '#4fc1ff'; ctx.fillRect(pad.left + 10, 16, 20, 4);
+        ctx.fillStyle = '#d4d4d4'; ctx.textAlign = 'left'; ctx.font = '12px Arial';
+        ctx.fillText('总误差 = |初始偏差| + |温度漂移 × ΔT|（最坏叠加）', pad.left + 40, 22);
+    }
+
+    function renderAll() {
+        const res = compute();
+        renderWarn(res);
+        renderDashboard(res);
+        drawChart(res);
+    }
+
+    function exportCSV() {
+        let csv = 'data:text/csv;charset=utf-8,\uFEFF';
+        csv += 'ΔT(°C),总误差(ppm),RSS(ppm),频率偏差Δf(Hz),时间漂移(秒/天)\n';
+        for (let t = 0; t <= 60; t++) {
+            const tot = Math.abs(state.init) + Math.abs(state.drift) * t;
+            const rss = Math.sqrt(state.init * state.init + Math.pow(state.drift * t, 2));
+            csv += t + ',' + fmtNum(tot) + ',' + fmtNum(rss) + ',' + fmtNum(state.f0 * tot / 1e6) + ',' + fmtNum(tot * 0.0864) + '\n';
+        }
+        const fname = '晶振频率误差_f0' + fmtFreq(state.f0).replace(/\s/g, '') + '_初始' + fmtNum(Math.abs(state.init)) + 'ppm_温漂' + fmtNum(Math.abs(state.drift)) + 'ppmC.csv';
+        const link = document.createElement('a');
+        link.setAttribute('href', encodeURI(csv));
+        link.setAttribute('download', fname);
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    // 初始化控件
+    bindLinearControl('slideF0', 'valF0', 'unitF0', 'f0', 0, 0.01, 100, 0.0001);
+    bindLinearControl('slideInit', 'valInit', 'unitInit', 'init', 0, 0, 200, 1);
+    bindLinearControl('slideDrift', 'valDrift', 'unitDrift', 'drift', 0, 0, 50, 0.5);
+    bindLinearControl('slideDt', 'valDt', 'unitDt', 'dt', 0, 0, 60, 1);
+
+    renderAll();
+</script>
+</body>
+</html>

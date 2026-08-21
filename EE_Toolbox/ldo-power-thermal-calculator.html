@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>LDO 功耗与热计算器</title>
+    <style>
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-tertiary: #2d2d30;
+            --bg-elevated: #333335;
+            --border-color: #3c3c3c;
+            --text-primary: #d4d4d4;
+            --text-secondary: #9a9a9a;
+            --text-muted: #6a6a6a;
+            --accent-orange: #ff7b00;
+            --accent-cyan: #4fc1ff;
+            --accent-red: #f14c4c;
+            --accent-green: #4ec9b0;
+            --accent-blue: #569cd6;
+            --accent-yellow: #e6b800;
+        }
+        body { font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; background-color: var(--bg-primary); margin: 0; padding: 20px; color: var(--text-primary); min-height: 100vh; }
+        .container { max-width: 1000px; margin: 0 auto; background: var(--bg-secondary); padding: 30px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); border: 1px solid var(--border-color); }
+        h1 { text-align: center; color: var(--accent-cyan); font-size: 24px; margin-bottom: 14px; font-weight: 600; letter-spacing: 0.5px; }
+        .back-btn { position: fixed; top: 16px; left: 16px; z-index: 100; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); font-size: 13px; font-weight: bold; text-decoration: none; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); transition: all 0.2s; }
+        .back-btn:hover { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #1a1a1a; }
+
+        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 22px; padding: 20px; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color); }
+        .control-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 13px; color: var(--text-secondary); }
+        .control-group .value-row { display: flex; align-items: center; margin-bottom: 12px; }
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent-cyan); height: 6px; }
+        .val-stepper { display: inline-flex; align-items: stretch; }
+        .val-stepper .step-btn { width: 28px; height: 32px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; transition: background 0.15s, color 0.15s; }
+        .val-stepper .step-btn:hover { background: var(--accent-cyan); color: #1a1a1a; }
+        .val-stepper .step-btn:active { background: #7ad4ff; }
+        .val-stepper .step-btn.left { border-right: none; border-radius: 4px 0 0 4px; }
+        .val-stepper .step-btn.right { border-left: none; border-radius: 0 4px 4px 0; }
+        .val-input { width: 80px; font-family: inherit; font-weight: bold; font-size: 15px; text-align: center; color: var(--accent-cyan); background: var(--bg-primary); border: 1px solid var(--border-color); padding: 4px 8px; transition: border-color 0.2s, box-shadow 0.2s; border-radius: 0; }
+        .val-input:focus { outline: none; border-color: var(--accent-cyan); box-shadow: 0 0 0 2px rgba(79, 193, 255, 0.25); z-index: 1; position: relative; }
+        .val-input::-webkit-outer-spin-button, .val-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .val-input { -moz-appearance: textfield; }
+        .unit-select { margin-left: 6px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-family: inherit; font-weight: bold; font-size: 13px; padding: 5px 6px; border-radius: 4px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+        .unit-select:hover, .unit-select:focus { outline: none; border-color: var(--accent-cyan); color: var(--accent-cyan); }
+
+        .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 18px; }
+        .metric-card { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: transform 0.2s, box-shadow 0.2s; }
+        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .metric-card.tau { border-top: 4px solid var(--accent-blue); background: linear-gradient(180deg, rgba(86, 156, 214, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.thresh { border-top: 4px solid var(--accent-orange); background: linear-gradient(180deg, rgba(255, 123, 0, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.full { border-top: 4px solid var(--accent-green); background: linear-gradient(180deg, rgba(78, 201, 176, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-title { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; font-weight: bold; }
+        .metric-value { font-size: 24px; font-weight: 900; }
+        .metric-sub { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+
+        canvas { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; width: 100%; box-shadow: inset 0 0 20px rgba(0,0,0,0.3); margin-bottom: 20px; }
+        .btn-export { display: block; width: 280px; margin: 0 auto; padding: 12px 20px; background-color: var(--accent-cyan); color: #1a1a1a; text-align: center; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+        .btn-export:hover { background-color: #7ad4ff; box-shadow: 0 4px 12px rgba(79, 193, 255, 0.4); }
+
+        .warn-box { display: none; margin-top: 14px; padding: 10px 14px; background: rgba(230,184,0,0.10); border: 1px solid var(--accent-yellow); border-radius: 6px; color: var(--accent-yellow); font-size: 13px; line-height: 1.7; }
+        .note { font-size: 12px; color: var(--text-muted); line-height: 1.7; margin-top: 4px; }
+    </style>
+</head>
+<body>
+<a class="back-btn" href="index.html" title="返回工具索引">&#8592; 返回目录</a>
+<div class="container">
+    <h1>&#128293; LDO 功耗与热计算器</h1>
+
+    <div class="controls-grid">
+        <div class="control-group">
+            <label>输入电压 (Vin)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valVin" class="val-input" step="any" value="5">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitVin"><option value="0" selected>V</option></select>
+            </div>
+            <input type="range" id="slideVin" min="1" max="40" step="0.1" value="5">
+        </div>
+        <div class="control-group">
+            <label>输出电压 (Vout)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valVout" class="val-input" step="any" value="3.3">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitVout"><option value="0" selected>V</option></select>
+            </div>
+            <input type="range" id="slideVout" min="0.5" max="30" step="0.1" value="3.3">
+        </div>
+        <div class="control-group">
+            <label>负载电流 (Iout)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valIout" class="val-input" step="any" value="500">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitIout">
+                    <option value="0" selected>mA</option>
+                    <option value="1">A</option>
+                </select>
+            </div>
+            <input type="range" id="slideIout" min="0.01" max="3" step="0.01" value="0.5">
+        </div>
+        <div class="control-group">
+            <label>静态电流 (Iq)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valIq" class="val-input" step="any" value="50">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitIq">
+                    <option value="0" selected>&mu;A</option>
+                    <option value="1">mA</option>
+                </select>
+            </div>
+            <input type="range" id="slideIq" min="0" max="0.05" step="0.00001" value="0.00005">
+        </div>
+        <div class="control-group">
+            <label>环境温度 (Tamb)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valTamb" class="val-input" step="any" value="25">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitTamb"><option value="0" selected>&deg;C</option></select>
+            </div>
+            <input type="range" id="slideTamb" min="0" max="85" step="1" value="25">
+        </div>
+        <div class="control-group">
+            <label>热阻 (&theta;JA)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valThja" class="val-input" step="any" value="60">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitThja"><option value="0" selected>&deg;C/W</option></select>
+            </div>
+            <input type="range" id="slideThja" min="10" max="250" step="1" value="60">
+            <div class="note">参考：TO-220 &asymp; 40~60 · SOT-223 &asymp; 60 · DFN3&times;3 &asymp; 50 · SOT-23-5 &asymp; 150~250</div>
+        </div>
+    </div>
+    <div class="warn-box" id="warnBox"></div>
+    <div class="note">Pd = (Vin &minus; Vout)&middot;Iout + Vin&middot;Iq；Tj = Tamb + Pd&middot;&theta;JA。&theta;JA 取值对铺铜面积敏感，请以数据手册/实测为准。</div>
+
+    <div class="dashboard">
+        <div class="metric-card tau">
+            <div class="metric-title">耗散功率 Pd</div>
+            <div class="metric-value" id="v1" style="color:#569cd6;">--</div>
+            <div class="metric-sub" id="s1">--</div>
+        </div>
+        <div class="metric-card thresh">
+            <div class="metric-title">结温 Tj</div>
+            <div class="metric-value" id="v2" style="color:#ff7b00;">--</div>
+            <div class="metric-sub" id="s2">--</div>
+        </div>
+        <div class="metric-card full">
+            <div class="metric-title">效率 &eta;</div>
+            <div class="metric-value" id="v3" style="color:#4ec9b0;">--</div>
+            <div class="metric-sub" id="s3">--</div>
+        </div>
+    </div>
+
+    <canvas id="chartCanvas" width="900" height="420"></canvas>
+
+    <button class="btn-export" onclick="exportCSV()">导出 Vin 扫描曲线 (CSV)</button>
+</div>
+
+<script>
+    const UNIT_FACTORS = { vin: [1], vout: [1], iout: [0.001, 1], iq: [1e-6, 1e-3], tamb: [1], thja: [1] };
+    const state = { vin: 5, vout: 3.3, iout: 0.5, iq: 50e-6, tamb: 25, thja: 60 };
+
+    const canvas = document.getElementById('chartCanvas');
+    const ctx = canvas.getContext('2d');
+
+    function formatDisplay(v) { return parseFloat(v.toPrecision(4)).toString(); }
+    function fmtW(w) {
+        if (w >= 1) return parseFloat(w.toPrecision(3)) + ' W';
+        return parseFloat((w * 1e3).toPrecision(3)) + ' mW';
+    }
+
+    // 微调按钮固定步进：按显示值量级取整齐步长（0.5 / 0.1 / 0.01 / 0.001）
+    function niceStep(v) {
+        const a = Math.abs(v);
+        if (a >= 10) return 0.5;
+        if (a >= 1) return 0.1;
+        if (a >= 0.1) return 0.01;
+        return 0.001;
+    }
+    function stepDecimals(st) {
+        if (st >= 1) return 0;
+        if (st >= 0.1) return 1;
+        if (st >= 0.01) return 2;
+        return 3;
+    }
+
+    // ================= 计算 =================
+    function pdOf(v) { return (v - state.vout) * state.iout + v * state.iq; }
+    function tjOf(v) { return state.tamb + pdOf(v) * state.thja; }
+    function etaOf(v) { return v > 0 ? (state.vout * state.iout) / (v * (state.iout + state.iq)) * 100 : 0; }
+    function compute() {
+        const pd = pdOf(state.vin);
+        return { pd, tj: tjOf(state.vin), eta: etaOf(state.vin) };
+    }
+
+    // 线性控件绑定
+    function bindLinearControl(sliderId, valId, unitId, varName, defaultUnitIdx, sliderMin, sliderMax, sliderStep) {
+        const slider = sliderId ? document.getElementById(sliderId) : null;
+        const numInput = document.getElementById(valId);
+        const unitSel = document.getElementById(unitId);
+        const stepper = numInput.closest('.val-stepper');
+        const min = sliderMin !== undefined ? sliderMin : (slider ? parseFloat(slider.min) : 0);
+        const max = sliderMax !== undefined ? sliderMax : (slider ? parseFloat(slider.max) : 100);
+        const step = sliderStep !== undefined ? sliderStep : (slider ? parseFloat(slider.step) : 1);
+        unitSel.value = String(defaultUnitIdx);
+
+        function getFactor() { return UNIT_FACTORS[varName][parseInt(unitSel.value)]; }
+        function refreshInputDisplay() { numInput.value = formatDisplay(state[varName] / getFactor()); }
+        function refreshSliderPosition() { if (slider) slider.value = state[varName]; }
+        function setSiValue(siVal) {
+            siVal = Math.max(min, Math.min(max, siVal));
+            const steps = Math.round((siVal - min) / step);
+            siVal = Math.max(min, Math.min(max, min + steps * step));
+            state[varName] = siVal;
+            refreshInputDisplay();
+            refreshSliderPosition();
+            renderAll();
+        }
+
+        if (slider) slider.oninput = function() {
+            state[varName] = parseFloat(slider.value);
+            refreshInputDisplay();
+            renderAll();
+        };
+        numInput.oninput = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) return;
+            state[varName] = Math.max(min, Math.min(max, dispVal * getFactor()));
+            refreshSliderPosition();
+            renderAll();
+        };
+        numInput.onchange = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) { refreshInputDisplay(); return; }
+            setSiValue(dispVal * getFactor());
+        };
+        unitSel.onchange = function() { refreshInputDisplay(); numInput.focus(); };
+
+        if (stepper) {
+            let holdTimer = null, holdInterval = null;
+            const holdDelay = 400, holdIntervalMs = 80;
+            stepper.querySelectorAll('.step-btn').forEach(btn => {
+                const dir = parseFloat(btn.dataset.step);
+                const doStep = () => {
+                    const disp = state[varName] / getFactor();
+                    const stepDisp = step / getFactor();
+                    const st = Math.max(stepDisp, niceStep(disp));
+                    const newDisp = parseFloat((disp + dir * st).toFixed(stepDecimals(st)));
+                    setSiValue(newDisp * getFactor());
+                };
+                btn.addEventListener('mousedown', function(e) {
+                    e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                const stopHold = () => {
+                    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+                    if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+                };
+                btn.addEventListener('mouseup', stopHold);
+                btn.addEventListener('mouseleave', stopHold);
+                btn.addEventListener('touchstart', function(e) { e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                btn.addEventListener('touchend', stopHold);
+                btn.addEventListener('touchcancel', stopHold);
+            });
+        }
+        refreshInputDisplay();
+        refreshSliderPosition();
+    }
+
+    // ================= 工程提示 =================
+    function getWarnings(res) {
+        const w = [];
+        if (state.vin <= state.vout) w.push('Vin &le; Vout：LDO 只能降压，无法稳压输出，请核对输入电压。');
+        else if (state.vin - state.vout < 0.3) w.push('压差 ' + (state.vin - state.vout).toFixed(2) + ' V 可能低于 dropout 电压（典型 0.1~0.7 V），输出可能无法正常稳压，请查数据手册。');
+        if (res.tj >= 150) w.push('结温 ' + res.tj.toFixed(0) + ' &deg;C 已超过常见绝对最大额定（150 &deg;C），随时可能热关断，必须改善散热或改用 DCDC！');
+        else if (res.tj >= 125) w.push('结温 ' + res.tj.toFixed(0) + ' &deg;C 偏高：建议降低 Vin、加大铺铜散热面积或改用开关稳压器。');
+        if (res.eta < 40 && res.pd > 1) w.push('效率不足 40% 且耗散超 1 W：压差大 + 电流大场景建议改用 Buck 降压。');
+        return w;
+    }
+
+    // ================= 渲染 =================
+    function renderWarn(res) {
+        const w = getWarnings(res);
+        const wb = document.getElementById('warnBox');
+        if (w.length) { wb.style.display = 'block'; wb.innerHTML = w.join('<br>'); }
+        else wb.style.display = 'none';
+    }
+
+    function renderDashboard(res) {
+        document.getElementById('v1').textContent = fmtW(res.pd);
+        document.getElementById('s1').textContent = '(' + formatDisplay(state.vin) + '−' + formatDisplay(state.vout) + ')×' + formatDisplay(state.iout) + ' A + Iq 项';
+        const v2 = document.getElementById('v2');
+        v2.textContent = res.tj.toFixed(1) + ' °C';
+        v2.style.color = res.tj >= 150 ? '#f14c4c' : (res.tj >= 125 ? '#e6b800' : '#ff7b00');
+        document.getElementById('s2').textContent = 'Tamb ' + state.tamb + ' °C + ' + fmtW(res.pd) + '×' + state.thja + ' °C/W';
+        document.getElementById('v3').textContent = res.eta.toFixed(1) + ' %';
+        document.getElementById('s3').textContent = '理想上限 Vout/Vin = ' + (state.vout / state.vin * 100).toFixed(1) + ' %';
+    }
+
+    function drawChart(res) {
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        const pad = { top: 50, right: 80, bottom: 60, left: 85 };
+        const plotW = w - pad.left - pad.right;
+        const plotH = h - pad.top - pad.bottom;
+        const vMin = Math.max(0, state.vout - 0.5);
+        const vMax = Math.max(state.vin * 1.4, state.vout + 8);
+        const pdMax = Math.max(pdOf(vMax) * 1.15, 0.1);
+        const tjMin = state.tamb;
+        const tjMax = Math.max(tjOf(vMax) * 1.08, state.tamb + 10);
+        const xOf = v => pad.left + ((v - vMin) / (vMax - vMin)) * plotW;
+        const yPd = p => pad.top + plotH - (p / pdMax) * plotH;
+        const yTj = t => Math.max(pad.top, Math.min(h - pad.bottom, pad.top + plotH - ((t - tjMin) / (tjMax - tjMin)) * plotH));
+
+        // 网格
+        ctx.beginPath(); ctx.strokeStyle = '#2d2d30'; ctx.lineWidth = 1;
+        for (let i = 0; i <= 10; i++) { const x = pad.left + (plotW / 10) * i; ctx.moveTo(x, pad.top); ctx.lineTo(x, h - pad.bottom); }
+        for (let i = 0; i <= 6; i++) { const y = pad.top + (plotH / 6) * i; ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); }
+        ctx.stroke();
+
+        // 刻度
+        ctx.font = '12px Arial'; ctx.textAlign = 'center'; ctx.fillStyle = '#9a9a9a';
+        for (let i = 0; i <= 5; i++) ctx.fillText((vMin + (vMax - vMin) / 5 * i).toFixed(1) + ' V', pad.left + (plotW / 5) * i, h - pad.bottom + 20);
+        ctx.fillText('输入电压 Vin', w / 2, h - 16);
+        ctx.textAlign = 'right'; ctx.fillStyle = '#4fc1ff';
+        for (let i = 0; i <= 6; i++) ctx.fillText((pdMax / 6 * (6 - i)).toFixed(2) + ' W', pad.left - 8, pad.top + (plotH / 6) * i + 4);
+        ctx.textAlign = 'left'; ctx.fillStyle = '#ff7b00';
+        for (let i = 0; i <= 6; i++) ctx.fillText((tjMin + (tjMax - tjMin) / 6 * (6 - i)).toFixed(0) + '°', w - pad.right + 8, pad.top + (plotH / 6) * i + 4);
+
+        // 结温 125°C 参考线
+        if (125 > tjMin && 125 < tjMax) {
+            const y = yTj(125);
+            ctx.beginPath(); ctx.strokeStyle = '#f14c4c'; ctx.setLineDash([5, 4]); ctx.lineWidth = 1;
+            ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); ctx.stroke(); ctx.setLineDash([]);
+            ctx.fillStyle = '#f14c4c'; ctx.textAlign = 'right'; ctx.fillText('Tj 建议上限 125 °C', w - pad.right - 6, y - 6);
+        }
+
+        // Pd 曲线（左轴，青）
+        ctx.beginPath(); ctx.strokeStyle = '#4fc1ff'; ctx.lineWidth = 3;
+        ctx.moveTo(xOf(vMin), yPd(Math.max(pdOf(vMin), 0)));
+        ctx.lineTo(xOf(vMax), yPd(pdOf(vMax)));
+        ctx.stroke();
+
+        // Tj 曲线（右轴，橙）
+        ctx.beginPath(); ctx.strokeStyle = '#ff7b00'; ctx.lineWidth = 3;
+        ctx.moveTo(xOf(vMin), yTj(tjOf(vMin)));
+        ctx.lineTo(xOf(vMax), yTj(tjOf(vMax)));
+        ctx.stroke();
+
+        // 工作点
+        if (state.vin >= vMin && state.vin <= vMax) {
+            const px = xOf(state.vin);
+            ctx.beginPath(); ctx.strokeStyle = '#6a6a6a'; ctx.setLineDash([3, 3]);
+            ctx.moveTo(px, pad.top); ctx.lineTo(px, h - pad.bottom); ctx.stroke(); ctx.setLineDash([]);
+            ctx.beginPath(); ctx.fillStyle = '#4fc1ff'; ctx.arc(px, yPd(res.pd), 5, 0, Math.PI * 2); ctx.fill();
+            ctx.beginPath(); ctx.fillStyle = '#ff7b00'; ctx.arc(px, yTj(res.tj), 5, 0, Math.PI * 2); ctx.fill();
+            const label = 'Vin = ' + formatDisplay(state.vin) + ' V：Pd ' + fmtW(res.pd) + '，Tj ' + res.tj.toFixed(0) + ' °C';
+            ctx.font = 'bold 12px Arial';
+            const tw = ctx.measureText(label).width + 14;
+            const lx = Math.max(pad.left + tw / 2, Math.min(w - pad.right - tw / 2, px));
+            ctx.fillStyle = 'rgba(30,30,30,0.88)'; ctx.fillRect(lx - tw / 2, pad.top + 4, tw, 18);
+            ctx.strokeStyle = '#4fc1ff'; ctx.lineWidth = 1; ctx.strokeRect(lx - tw / 2, pad.top + 4, tw, 18);
+            ctx.fillStyle = '#d4d4d4'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, lx, pad.top + 13); ctx.textBaseline = 'alphabetic';
+        }
+
+        // 图例
+        ctx.textAlign = 'left'; ctx.font = '12px Arial';
+        ctx.fillStyle = '#4fc1ff'; ctx.fillRect(pad.left + 10, 16, 20, 4);
+        ctx.fillStyle = '#d4d4d4'; ctx.fillText('Pd 功耗（左轴 W）', pad.left + 38, 22);
+        ctx.fillStyle = '#ff7b00'; ctx.fillRect(pad.left + 170, 16, 20, 4);
+        ctx.fillStyle = '#d4d4d4'; ctx.fillText('Tj 结温（右轴 °C）', pad.left + 198, 22);
+    }
+
+    function exportCSV() {
+        let csv = 'data:text/csv;charset=utf-8,\uFEFF';
+        csv += 'Vin(V),Pd(W),Tj(°C),eta(%)\n';
+        const vMin = Math.max(0, state.vout - 0.5);
+        const vMax = Math.max(state.vin * 1.4, state.vout + 8);
+        const N = 100;
+        for (let i = 0; i <= N; i++) {
+            const v = vMin + (vMax - vMin) / N * i;
+            csv += v.toFixed(3) + ',' + pdOf(v).toFixed(4) + ',' + tjOf(v).toFixed(2) + ',' + etaOf(v).toFixed(2) + '\n';
+        }
+        const link = document.createElement('a');
+        link.setAttribute('href', encodeURI(csv));
+        link.setAttribute('download', 'LDO热计算_Vout' + formatDisplay(state.vout) + 'V_Iout' + formatDisplay(state.iout) + 'A.csv');
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    function renderAll() {
+        const res = compute();
+        renderWarn(res);
+        renderDashboard(res);
+        drawChart(res);
+    }
+
+    // 初始化控件
+    bindLinearControl('slideVin', 'valVin', 'unitVin', 'vin', 0, 1, 40, 0.1);
+    bindLinearControl('slideVout', 'valVout', 'unitVout', 'vout', 0, 0.5, 30, 0.1);
+    bindLinearControl('slideIout', 'valIout', 'unitIout', 'iout', 0, 0.01, 3, 0.01);
+    bindLinearControl('slideIq', 'valIq', 'unitIq', 'iq', 0, 0, 0.05, 0.00001);
+    bindLinearControl('slideTamb', 'valTamb', 'unitTamb', 'tamb', 0, 0, 85, 1);
+    bindLinearControl('slideThja', 'valThja', 'unitThja', 'thja', 0, 10, 250, 1);
+
+    renderAll();
+</script>
+</body>
+</html>

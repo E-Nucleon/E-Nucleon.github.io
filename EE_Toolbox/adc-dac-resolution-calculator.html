@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>ADC/DAC 分辨率计算器</title>
+    <style>
+        :root {
+            --bg-primary: #1e1e1e;
+            --bg-secondary: #252526;
+            --bg-tertiary: #2d2d30;
+            --bg-elevated: #333335;
+            --border-color: #3c3c3c;
+            --text-primary: #d4d4d4;
+            --text-secondary: #9a9a9a;
+            --text-muted: #6a6a6a;
+            --accent-orange: #ff7b00;
+            --accent-cyan: #4fc1ff;
+            --accent-red: #f14c4c;
+            --accent-green: #4ec9b0;
+            --accent-blue: #569cd6;
+            --accent-yellow: #e6b800;
+        }
+        body { font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif; background-color: var(--bg-primary); margin: 0; padding: 20px; color: var(--text-primary); min-height: 100vh; }
+        .container { max-width: 1000px; margin: 0 auto; background: var(--bg-secondary); padding: 30px; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.4); border: 1px solid var(--border-color); }
+        h1 { text-align: center; color: var(--accent-cyan); font-size: 24px; margin-bottom: 14px; font-weight: 600; letter-spacing: 0.5px; }
+        .back-btn { position: fixed; top: 16px; left: 16px; z-index: 100; display: inline-flex; align-items: center; gap: 6px; padding: 8px 14px; background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-secondary); font-size: 13px; font-weight: bold; text-decoration: none; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3); transition: all 0.2s; }
+        .back-btn:hover { background: var(--accent-cyan); border-color: var(--accent-cyan); color: #1a1a1a; }
+
+        .controls-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 20px; margin-bottom: 22px; padding: 20px; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color); }
+        .control-group label { display: block; margin-bottom: 8px; font-weight: bold; font-size: 13px; color: var(--text-secondary); }
+        .control-group .value-row { display: flex; align-items: center; margin-bottom: 12px; }
+        input[type="range"] { width: 100%; cursor: pointer; accent-color: var(--accent-cyan); height: 6px; }
+        .val-stepper { display: inline-flex; align-items: stretch; }
+        .val-stepper .step-btn { width: 28px; height: 32px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-size: 16px; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; user-select: none; transition: background 0.15s, color 0.15s; }
+        .val-stepper .step-btn:hover { background: var(--accent-cyan); color: #1a1a1a; }
+        .val-stepper .step-btn:active { background: #7ad4ff; }
+        .val-stepper .step-btn.left { border-right: none; border-radius: 4px 0 0 4px; }
+        .val-stepper .step-btn.right { border-left: none; border-radius: 0 4px 4px 0; }
+        .val-input { width: 80px; font-family: inherit; font-weight: bold; font-size: 15px; text-align: center; color: var(--accent-cyan); background: var(--bg-primary); border: 1px solid var(--border-color); padding: 4px 8px; transition: border-color 0.2s, box-shadow 0.2s; border-radius: 0; }
+        .val-input:focus { outline: none; border-color: var(--accent-cyan); box-shadow: 0 0 0 2px rgba(79, 193, 255, 0.25); z-index: 1; position: relative; }
+        .val-input::-webkit-outer-spin-button, .val-input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .val-input { -moz-appearance: textfield; }
+        .unit-select { margin-left: 6px; background: var(--bg-primary); border: 1px solid var(--border-color); color: var(--text-secondary); font-family: inherit; font-weight: bold; font-size: 13px; padding: 5px 6px; border-radius: 4px; cursor: pointer; transition: border-color 0.15s, color 0.15s; }
+        .unit-select:hover, .unit-select:focus { outline: none; border-color: var(--accent-cyan); color: var(--accent-cyan); }
+        .sel-wide { margin-left: 0; width: 100%; padding: 8px; }
+
+        .dashboard { display: grid; grid-template-columns: repeat(3, 1fr); gap: 15px; margin-bottom: 18px; }
+        .metric-card { background: var(--bg-tertiary); border: 1px solid var(--border-color); border-radius: 8px; padding: 15px; text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.3); transition: transform 0.2s, box-shadow 0.2s; }
+        .metric-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .metric-card.tau { border-top: 4px solid var(--accent-blue); background: linear-gradient(180deg, rgba(86, 156, 214, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.thresh { border-top: 4px solid var(--accent-orange); background: linear-gradient(180deg, rgba(255, 123, 0, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-card.full { border-top: 4px solid var(--accent-green); background: linear-gradient(180deg, rgba(78, 201, 176, 0.08) 0%, var(--bg-tertiary) 100%); }
+        .metric-title { font-size: 13px; color: var(--text-secondary); margin-bottom: 8px; font-weight: bold; }
+        .metric-value { font-size: 24px; font-weight: 900; }
+        .metric-sub { font-size: 12px; color: var(--text-muted); margin-top: 5px; }
+
+        canvas { background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; width: 100%; box-shadow: inset 0 0 20px rgba(0,0,0,0.3); margin-bottom: 20px; }
+        .btn-export { display: block; width: 280px; margin: 0 auto; padding: 12px 20px; background-color: var(--accent-cyan); color: #1a1a1a; text-align: center; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; transition: all 0.3s; }
+        .btn-export:hover { background-color: #7ad4ff; box-shadow: 0 4px 12px rgba(79, 193, 255, 0.4); }
+
+        .warn-box { display: none; margin-top: 14px; padding: 10px 14px; background: rgba(230,184,0,0.10); border: 1px solid var(--accent-yellow); border-radius: 6px; color: var(--accent-yellow); font-size: 13px; line-height: 1.7; }
+        .warn-box.red { background: rgba(241,76,76,0.10); border-color: var(--accent-red); color: var(--accent-red); }
+        .warn-box.yellow { background: rgba(230,184,0,0.10); border-color: var(--accent-yellow); color: var(--accent-yellow); }
+        .warn-box.green { background: rgba(78,201,176,0.10); border-color: var(--accent-green); color: var(--accent-green); }
+        .note { font-size: 12px; color: var(--text-muted); line-height: 1.7; margin-top: 4px; }
+    </style>
+</head>
+<body>
+<a class="back-btn" href="index.html" title="返回工具索引">&#8592; 返回目录</a>
+<div class="container">
+    <h1>&#128202; ADC/DAC 分辨率计算器</h1>
+
+    <div class="controls-grid">
+        <div class="control-group">
+            <label>参考电压 (Vref)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valVref" class="val-input" step="any" value="3.3">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitVref"><option value="0" selected>V</option></select>
+            </div>
+            <input type="range" id="slideVref" min="0.5" max="5.5" step="0.05" value="3.3">
+        </div>
+        <div class="control-group">
+            <label>分辨率（位数 n）</label>
+            <div class="value-row">
+                <select class="unit-select sel-wide" id="bitSel">
+                    <option value="8">8 位（256 级）</option>
+                    <option value="10">10 位（1024 级）</option>
+                    <option value="12" selected>12 位（4096 级）</option>
+                    <option value="14">14 位（16384 级）</option>
+                    <option value="16">16 位（65536 级）</option>
+                    <option value="18">18 位（262144 级）</option>
+                    <option value="24">24 位（16777216 级）</option>
+                </select>
+            </div>
+            <div class="note">量化级数 2^n，LSB = Vref / 2^n</div>
+        </div>
+        <div class="control-group">
+            <label>输入电压 (Vin)</label>
+            <div class="value-row">
+                <div class="val-stepper">
+                    <button type="button" class="step-btn left" data-step="-1">&#9664;</button>
+                    <input type="number" id="valVin" class="val-input" step="any" value="1.65">
+                    <button type="button" class="step-btn right" data-step="1">&#9654;</button>
+                </div>
+                <select class="unit-select" id="unitVin">
+                    <option value="0">mV</option>
+                    <option value="1" selected>V</option>
+                </select>
+            </div>
+            <input type="range" id="slideVin" min="0" max="3.3" step="0.001" value="1.65">
+        </div>
+        <div class="control-group">
+            <label>码值 (Code)</label>
+            <div class="value-row">
+                <input type="number" id="valCode" class="val-input" step="1" min="0" value="2048">
+            </div>
+            <div class="note">整数，范围 0 ~ 2^n−1，与 Vin 双向联动</div>
+        </div>
+    </div>
+    <div class="warn-box" id="warnBox"></div>
+    <div class="note">量化模型：LSB = Vref / 2^n，Code = round(Vin / LSB)（钳位于 0 ~ 2^n−1）；理想 SNR = 6.02&middot;n + 1.76 dB（动态范围同值），量化误差 &plusmn;0.5 LSB。Vin 与 Code 双向联动：编辑任一输入框并回车即可反推另一侧。</div>
+
+    <div class="dashboard">
+        <div class="metric-card tau">
+            <div class="metric-title" id="t1">LSB 电压</div>
+            <div class="metric-value" id="v1" style="color:#569cd6;">--</div>
+            <div class="metric-sub" id="s1">--</div>
+        </div>
+        <div class="metric-card thresh">
+            <div class="metric-title" id="t2">ADC 码值</div>
+            <div class="metric-value" id="v2" style="color:#ff7b00;">--</div>
+            <div class="metric-sub" id="s2">--</div>
+        </div>
+        <div class="metric-card full">
+            <div class="metric-title" id="t3">理想 SNR</div>
+            <div class="metric-value" id="v3" style="color:#4ec9b0;">--</div>
+            <div class="metric-sub" id="s3">--</div>
+        </div>
+    </div>
+
+    <canvas id="chartCanvas" width="900" height="420"></canvas>
+
+    <button class="btn-export" onclick="exportCSV()">导出码值-电压表 (CSV)</button>
+</div>
+
+<script>
+    const UNIT_FACTORS = { vref: [1], vin: [0.001, 1] };
+
+    const state = { vref: 3.3, bits: 12, vin: 1.65 };
+
+    const canvas = document.getElementById('chartCanvas');
+    const ctx = canvas.getContext('2d');
+    const valCodeEl = document.getElementById('valCode');
+    const slideVinEl = document.getElementById('slideVin');
+    let syncing = false;   // 双向联动防死循环标志
+
+    function formatDisplay(v) { return parseFloat(v.toPrecision(4)).toString(); }
+    function fmtVolt(v) {
+        if (v === 0) return '0 V';
+        if (v >= 1) return parseFloat(v.toPrecision(4)) + ' V';
+        if (v >= 1e-3) return parseFloat((v * 1e3).toPrecision(4)) + ' mV';
+        return parseFloat((v * 1e6).toPrecision(4)) + ' μV';
+    }
+    function fmtCode(v) {
+        if (v >= 1e6) return parseFloat((v / 1e6).toPrecision(3)) + 'M';
+        if (v >= 1e3) return parseFloat((v / 1e3).toPrecision(3)) + 'k';
+        return String(Math.round(v));
+    }
+
+    // 微调按钮固定步进：按显示值量级取整齐步长（0.5 / 0.1 / 0.01 / 0.001）
+    function niceStep(v) {
+        const a = Math.abs(v);
+        if (a >= 10) return 0.5;
+        if (a >= 1) return 0.1;
+        if (a >= 0.1) return 0.01;
+        return 0.001;
+    }
+    function stepDecimals(st) {
+        if (st >= 1) return 0;
+        if (st >= 0.1) return 1;
+        if (st >= 0.01) return 2;
+        return 3;
+    }
+
+    // ================= 量化模型 =================
+    function compute() {
+        const levels = Math.pow(2, state.bits);
+        const fullScale = levels - 1;
+        const lsb = state.vref / levels;
+        const code = Math.max(0, Math.min(fullScale, Math.round(state.vin / lsb)));
+        const snr = 6.02 * state.bits + 1.76;
+        return { levels, fullScale, lsb, code, snr };
+    }
+
+    // 线性控件绑定
+    function bindLinearControl(sliderId, valId, unitId, varName, defaultUnitIdx, sliderMin, sliderMax, sliderStep) {
+        const slider = sliderId ? document.getElementById(sliderId) : null;
+        const numInput = document.getElementById(valId);
+        const unitSel = document.getElementById(unitId);
+        const stepper = numInput.closest('.val-stepper');
+        const min = sliderMin !== undefined ? sliderMin : (slider ? parseFloat(slider.min) : 0);
+        const max = sliderMax !== undefined ? sliderMax : (slider ? parseFloat(slider.max) : 100);
+        const step = sliderStep !== undefined ? sliderStep : (slider ? parseFloat(slider.step) : 1);
+        unitSel.value = String(defaultUnitIdx);
+
+        function getFactor() { return UNIT_FACTORS[varName][parseInt(unitSel.value)]; }
+        function refreshInputDisplay() { numInput.value = formatDisplay(state[varName] / getFactor()); }
+        function refreshSliderPosition() { if (slider) slider.value = state[varName]; }
+        function setSiValue(siVal) {
+            siVal = Math.max(min, Math.min(max, siVal));
+            const steps = Math.round((siVal - min) / step);
+            siVal = Math.max(min, Math.min(max, min + steps * step));
+            state[varName] = siVal;
+            refreshInputDisplay();
+            refreshSliderPosition();
+            renderAll();
+        }
+
+        if (slider) slider.oninput = function() {
+            state[varName] = parseFloat(slider.value);
+            refreshInputDisplay();
+            renderAll();
+        };
+        numInput.oninput = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) return;
+            state[varName] = Math.max(min, Math.min(max, dispVal * getFactor()));
+            refreshSliderPosition();
+            renderAll();
+        };
+        numInput.onchange = function() {
+            let dispVal = parseFloat(numInput.value);
+            if (isNaN(dispVal)) { refreshInputDisplay(); return; }
+            setSiValue(dispVal * getFactor());
+        };
+        unitSel.onchange = function() { refreshInputDisplay(); numInput.focus(); };
+
+        if (stepper) {
+            let holdTimer = null, holdInterval = null;
+            const holdDelay = 400, holdIntervalMs = 80;
+            stepper.querySelectorAll('.step-btn').forEach(btn => {
+                const dir = parseFloat(btn.dataset.step);
+                const doStep = () => {
+                    const disp = state[varName] / getFactor();
+                    const stepDisp = step / getFactor();
+                    // 滑块步长在显示单位下足够大时直接用滑块步长步进，保证与滑块网格对齐；否则按量级取整步进
+                    const st = stepDisp >= 0.05 ? stepDisp : niceStep(disp);
+                    const newDisp = parseFloat((disp + dir * st).toFixed(stepDecimals(st)));
+                    setSiValue(newDisp * getFactor());
+                };
+                btn.addEventListener('mousedown', function(e) {
+                    e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                const stopHold = () => {
+                    if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+                    if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+                };
+                btn.addEventListener('mouseup', stopHold);
+                btn.addEventListener('mouseleave', stopHold);
+                btn.addEventListener('touchstart', function(e) { e.preventDefault(); doStep();
+                    holdTimer = setTimeout(() => { holdInterval = setInterval(doStep, holdIntervalMs); }, holdDelay);
+                });
+                btn.addEventListener('touchend', stopHold);
+                btn.addEventListener('touchcancel', stopHold);
+            });
+        }
+        refreshInputDisplay();
+        refreshSliderPosition();
+    }
+
+    // ================= 渲染 =================
+    function renderWarn(res) {
+        const wb = document.getElementById('warnBox');
+        const red = [], yellow = [];
+        if (state.vin >= state.vref) red.push('输入达到或超过参考电压（Vin ≥ Vref）：码值钳位满量程，已超出量程，请加分压或钳位。');
+        if (state.vin < 0) red.push('输入为负电压（Vin < 0）：码值钳位为 0，可能损坏引脚，请加偏置或钳位。');
+        if (res.lsb < 1e-6) yellow.push('LSB 微伏级，实际精度受噪声与基准限制，注意 ENOB。');
+        if (state.bits >= 18) yellow.push('高位宽下 PCB 布局与基准噪声决定实际精度。');
+        wb.style.display = 'block';
+        if (red.length) { wb.className = 'warn-box red'; wb.innerHTML = red.concat(yellow).join('<br>'); }
+        else if (yellow.length) { wb.className = 'warn-box yellow'; wb.innerHTML = yellow.join('<br>'); }
+        else { wb.className = 'warn-box green'; wb.textContent = '量化参数正常'; }
+    }
+
+    function renderDashboard(res) {
+        document.getElementById('v1').textContent = fmtVolt(res.lsb);
+        document.getElementById('s1').textContent = 'Vref / 2^n = ' + formatDisplay(state.vref) + ' V / 2^' + state.bits;
+        document.getElementById('v2').textContent = res.code;
+        document.getElementById('s2').textContent = '0x' + res.code.toString(16).toUpperCase().padStart(4, '0') + ' · 满量程 2^' + state.bits + '−1 = ' + res.fullScale + '（电压 ' + fmtVolt(res.fullScale * res.lsb) + ' = Vref−LSB）';
+        document.getElementById('v3').textContent = res.snr.toFixed(1) + ' dB';
+        document.getElementById('s3').textContent = '量化误差 ±0.5 LSB = ±' + fmtVolt(res.lsb / 2) + ' · 动态范围同值';
+    }
+
+    function drawChart(res) {
+        const w = canvas.width, h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+        const pad = { top: 50, right: 70, bottom: 60, left: 85 };
+        const plotW = w - pad.left - pad.right;
+        const plotH = h - pad.top - pad.bottom;
+        const vMax = state.vref, cMax = res.fullScale;
+        const xOf = v => pad.left + (v / vMax) * plotW;
+        const yOf = c => pad.top + plotH - (c / cMax) * plotH;
+
+        // 网格
+        ctx.beginPath(); ctx.strokeStyle = '#2d2d30'; ctx.lineWidth = 1;
+        for (let i = 0; i <= 10; i++) { const x = pad.left + (plotW / 10) * i; ctx.moveTo(x, pad.top); ctx.lineTo(x, h - pad.bottom); }
+        for (let i = 0; i <= 6; i++) { const y = pad.top + (plotH / 6) * i; ctx.moveTo(pad.left, y); ctx.lineTo(w - pad.right, y); }
+        ctx.stroke();
+
+        // 刻度
+        ctx.fillStyle = '#9a9a9a'; ctx.font = '12px Arial'; ctx.textAlign = 'center';
+        for (let i = 0; i <= 5; i++) ctx.fillText(fmtVolt(vMax / 5 * i), pad.left + (plotW / 5) * i, h - pad.bottom + 20);
+        ctx.fillText('输入电压 Vin', w / 2, h - 16);
+        ctx.textAlign = 'right';
+        for (let i = 0; i <= 6; i++) {
+            const c = cMax / 6 * (6 - i);
+            ctx.fillText(fmtCode(c), pad.left - 8, pad.top + (plotH / 6) * i + 4);
+        }
+        ctx.save(); ctx.translate(24, pad.top + plotH / 2); ctx.rotate(-Math.PI / 2);
+        ctx.textAlign = 'center'; ctx.fillText('码值 Code', 0, 0); ctx.restore();
+
+        // 理想线性映射（灰色对角虚线）
+        ctx.beginPath(); ctx.strokeStyle = '#6a6a6a'; ctx.setLineDash([6, 4]); ctx.lineWidth = 1;
+        ctx.moveTo(xOf(0), yOf(0)); ctx.lineTo(xOf(vMax), yOf(cMax)); ctx.stroke(); ctx.setLineDash([]);
+
+        // 量化阶梯：2^n ≤ 64 时画真实阶梯，否则画 64 级示意阶梯
+        const schematic = res.levels > 64;
+        const seg = schematic ? 64 : res.levels;
+        ctx.beginPath(); ctx.strokeStyle = '#4fc1ff'; ctx.lineWidth = 2;
+        for (let i = 0; i < seg; i++) {
+            const c = schematic ? cMax * i / (seg - 1) : i;
+            const x0 = xOf(vMax * i / seg), x1 = xOf(vMax * (i + 1) / seg), y = yOf(c);
+            if (i === 0) ctx.moveTo(x0, y); else ctx.lineTo(x0, y);
+            ctx.lineTo(x1, y);
+        }
+        ctx.stroke();
+
+        // 工作点
+        const px = xOf(Math.max(0, Math.min(state.vin, vMax))), py = yOf(res.code);
+        ctx.beginPath(); ctx.fillStyle = '#ff7b00'; ctx.arc(px, py, 6, 0, Math.PI * 2); ctx.fill();
+        ctx.strokeStyle = '#1e1e1e'; ctx.lineWidth = 1.5; ctx.stroke();
+        const label = 'Vin = ' + fmtVolt(state.vin) + '，Code = ' + res.code;
+        ctx.font = 'bold 12px Arial';
+        const tw = ctx.measureText(label).width + 14;
+        const lx = Math.max(pad.left + tw / 2, Math.min(w - pad.right - tw / 2, px));
+        const ly = py - 26 < pad.top + 10 ? py + 24 : py - 26;
+        ctx.fillStyle = 'rgba(30,30,30,0.88)'; ctx.fillRect(lx - tw / 2, ly - 9, tw, 18);
+        ctx.strokeStyle = '#ff7b00'; ctx.lineWidth = 1; ctx.strokeRect(lx - tw / 2, ly - 9, tw, 18);
+        ctx.fillStyle = '#ff7b00'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(label, lx, ly); ctx.textBaseline = 'alphabetic';
+
+        // 左上角公式标注
+        ctx.fillStyle = '#4fc1ff'; ctx.fillRect(pad.left + 10, 16, 20, 4);
+        ctx.fillStyle = '#d4d4d4'; ctx.textAlign = 'left'; ctx.font = '12px Arial';
+        ctx.fillText('Code = Vin / LSB，LSB = ' + fmtVolt(res.lsb) + '（' + state.bits + ' 位）', pad.left + 40, 22);
+        if (schematic) {
+            ctx.fillStyle = '#e6b800'; ctx.textAlign = 'right';
+            ctx.fillText('高位宽示意图：阶梯按 64 级绘制', w - pad.right, 22);
+        }
+    }
+
+    function renderAll() {
+        const res = compute();
+        slideVinEl.max = state.vref;   // Vin 滑块范围 0 ~ vref
+        syncing = true;
+        valCodeEl.max = res.fullScale; // Code 输入上限随位数联动
+        valCodeEl.value = res.code;    // 程序化写回，不触发用户事件
+        syncing = false;
+        renderWarn(res);
+        renderDashboard(res);
+        drawChart(res);
+    }
+
+    function exportCSV() {
+        const levels = Math.pow(2, state.bits);
+        const fullScale = levels - 1;
+        const lsb = state.vref / levels;
+        let csv = 'data:text/csv;charset=utf-8,\uFEFF';
+        csv += 'Code,V(V)\n';
+        if (levels <= 4096) {
+            for (let c = 0; c <= fullScale; c++) {
+                csv += c + ',' + Number((c * lsb).toPrecision(10)) + '\n';
+            }
+        } else {
+            const rows = 1000;
+            for (let i = 0; i < rows; i++) {
+                const c = Math.round(fullScale * i / (rows - 1));
+                csv += c + ',' + Number((c * lsb).toPrecision(10)) + '\n';
+            }
+        }
+        const link = document.createElement('a');
+        link.setAttribute('href', encodeURI(csv));
+        link.setAttribute('download', 'ADC码表_' + state.bits + '位_Vref' + formatDisplay(state.vref) + 'V.csv');
+        document.body.appendChild(link); link.click(); document.body.removeChild(link);
+    }
+
+    // ================= 双向数值输入：Vin ↔ Code =================
+    // Code → Vin：用户编辑码值框（input/change），计算 Vin = Code·LSB 并写回 Vin 框与滑块
+    function syncVinControls() {
+        const vinInput = document.getElementById('valVin');
+        const unitIdx = parseInt(document.getElementById('unitVin').value, 10);
+        vinInput.value = formatDisplay(state.vin / UNIT_FACTORS.vin[unitIdx]);
+        slideVinEl.value = state.vin;
+    }
+    function onCodeEdit() {
+        if (syncing) return;
+        let c = parseFloat(valCodeEl.value);
+        if (isNaN(c)) return;
+        const levels = Math.pow(2, state.bits);
+        const lsb = state.vref / levels;
+        c = Math.max(0, Math.min(levels - 1, Math.round(c)));
+        state.vin = c * lsb;
+        syncVinControls();
+        renderAll();
+    }
+    valCodeEl.addEventListener('input', onCodeEdit);
+    valCodeEl.addEventListener('change', onCodeEdit);
+
+    // 位数下拉
+    document.getElementById('bitSel').addEventListener('change', function() {
+        state.bits = parseInt(this.value, 10);
+        renderAll();
+    });
+
+    // Vin → Code：用户编辑 Vin（输入框/滑块）后经 renderAll 写回码值框，单向更新不回流
+
+    // 初始化控件
+    bindLinearControl('slideVref', 'valVref', 'unitVref', 'vref', 0, 0.5, 5.5, 0.05);
+    bindLinearControl('slideVin', 'valVin', 'unitVin', 'vin', 1, 0, 5.5, 0.001);
+
+    renderAll();
+</script>
+</body>
+</html>

@@ -17,17 +17,16 @@
 <!-- 右侧 padding 对齐侧边时间轴宽度，勿删 -->
 <header class="site-header" id="siteHeader">
   <div class="wrap header-in">
-    <!-- LOGO + 站名（点击回顶部） -->
+    <!-- LOGO（点击回顶部） -->
     <a class="brand" href="#top">
-      <img src="icon/LOGO_1.png" alt="Nucleon 标志">
-      <span class="brand-text"><b>Nuc<span class="hl">leon</span></b><small>Smart Manufacturing</small></span>
+      <img src="icon/Nucleon Smart Manufacturing.png" alt="Nucleon Smart Manufacturing" class="brand-logo">
     </a>
     <!-- 主导航 -->
     <nav class="nav" id="siteNav">
-      <a href="EE_Toolbox/index.html">工具箱</a>
-      <a href="#social">社交</a>
-      <a href="#social">诚招兽太</a>
-      <a href="#social">2147483648名</a>
+      <a href="EE_Toolbox/index.html"><img src="icon/Toolbox.png" alt="" class="nav-ico">EE工具箱</a>
+      <a href="#social"><img src="icon/Link.png" alt="" class="nav-ico">友链</a>
+      <a href="#social"><img src="icon/Socializing.png" alt="" class="nav-ico">社交</a>
+      <a href="#social">？</a>
     </nav>
     <!-- 右侧功能区：搜索 + 语言切换 + 移动端菜单按钮 -->
     <div class="header-side">
@@ -148,6 +147,30 @@
       </div>
     </section>
 
+    <!-- 友链 -->
+    <!-- 友链卡片模板：复制一行即可新增，改 href / 头像 / 名称 / 网址 -->
+    <section class="section alt" id="links">
+      <div class="sec-head reveal">
+        <p class="kicker">LINKS</p>
+        <h2>友链</h2>
+        <p class="sec-sub">欢迎交换友链的朋友们的站点。</p>
+      </div>
+      <div class="links-grid reveal">
+        <a class="link-card" href="#" target="_blank" rel="noopener">
+          <div class="link-avatar"><img src="pictures/friends/placeholder.png" alt="好友头像"></div>
+          <div class="link-info"><b>好友昵称</b><span>example.com</span></div>
+        </a>
+        <a class="link-card" href="#" target="_blank" rel="noopener">
+          <div class="link-avatar"><img src="pictures/friends/placeholder.png" alt="好友头像"></div>
+          <div class="link-info"><b>好友昵称</b><span>example.com</span></div>
+        </a>
+        <a class="link-card" href="#" target="_blank" rel="noopener">
+          <div class="link-avatar"><img src="pictures/friends/placeholder.png" alt="好友头像"></div>
+          <div class="link-info"><b>好友昵称</b><span>example.com</span></div>
+        </a>
+      </div>
+    </section>
+
     <!-- 社交 -->
     <!-- 社交卡片：复制一行即可新增，改 href / 图标 / 名称 -->
     <section class="section" id="social">
@@ -161,7 +184,6 @@
         <a class="card social-card" href="https://oshwhub.com/qxqpcb" target="_blank" rel="noopener"><img src="icon/oshwhub.png" alt="OSHWHub"><h3>OSHWHub</h3><p>开源硬件项目分享</p><span class="handle"></span></a>
         <a class="card social-card" href="https://github.com/E-Nucleon" target="_blank" rel="noopener"><img src="icon/github.png" alt="GitHub"><h3>GitHub</h3><p>代码仓库与开源项目</p><span class="handle"></span></a>
         <a class="card social-card" href="https://qm.qq.com/q/ghTdKG4pkA" target="_blank" rel="noopener"><img src="icon/QQ.png" alt="QQ群"><h3>QQ 群</h3><p>技术交流与讨论</p><span class="handle"></span></a>
-        <a class="card social-card" href="https://x.com/E_Nucleon" target="_blank" rel="noopener"><img src="icon/X.png" alt="X"><h3>X</h3><p>社交与生活分享平台</p><span class="handle"></span></a>
         <a class="card social-card" href="mailto:enucleon@Outlook.com"><img src="icon/Email.png" alt="邮箱"><h3>邮箱</h3><p>联系我们或发送邮件</p><span class="handle"></span></a>
       </div>
     </section>
@@ -196,5 +218,7 @@
 <script src="js/main.js"></script>
 <!-- 3. 首页专属：时间轴、粒子背景、技能轨道、卡片滚动入场 -->
 <script src="js/home.js"></script>
+<!-- 4. 后端集成：检测 API 可用时自动替换动态内容（不可用则保持静态） -->
+<script src="js/api.js"></script>
 </body>
 </html>

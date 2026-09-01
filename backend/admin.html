@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>管理后台 · Nucleon</title>
+<style>
+:root{
+  --bg:#0b1220;--card:#101c33;--line:#1e3a5f;--text:#e6eef8;--muted:#8aa0b8;
+  --accent:#38bdf8;--accent2:#7dd3fc;--red:#f87171;--green:#4ade80;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:system-ui,sans-serif;min-height:100vh}
+
+/* —— 登录页 —— */
+#login{display:flex;align-items:center;justify-content:center;min-height:100vh}
+.login-box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:40px;width:320px}
+.login-box h1{font-size:1.4rem;text-align:center;margin-bottom:24px}
+.login-box input{width:100%;padding:10px 14px;background:var(--bg);border:1px solid var(--line);
+  border-radius:8px;color:var(--text);font-size:.9rem;margin-bottom:12px;outline:none}
+.login-box input:focus{border-color:var(--accent)}
+.login-box button{width:100%;padding:10px;background:var(--accent);border:none;border-radius:8px;
+  color:#0b1220;font-weight:700;cursor:pointer;font-size:.95rem}
+.login-box button:hover{background:var(--accent2)}
+.err{color:var(--red);font-size:.8rem;text-align:center;min-height:20px}
+
+/* —— 主界面 —— */
+#app{display:none}
+#app.on{display:block}
+.topbar{position:sticky;top:0;background:var(--card);border-bottom:1px solid var(--line);
+  padding:12px 24px;display:flex;align-items:center;justify-content:space-between;z-index:10}
+.topbar h1{font-size:1.1rem}
+.tabs{display:flex;gap:4px;padding:12px 24px;flex-wrap:wrap}
+.tab{padding:8px 16px;border-radius:8px;background:transparent;border:1px solid transparent;
+  color:var(--muted);cursor:pointer;font-size:.88rem;transition:.2s}
+.tab:hover{color:var(--text)}
+.tab.active{background:var(--card);border-color:var(--accent);color:var(--accent)}
+.content{padding:24px;max-width:1000px;margin:0 auto}
+
+/* —— 表格 —— */
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);color:var(--muted);
+  font-size:.8rem;font-weight:400}
+td{padding:10px 12px;border-bottom:1px solid var(--line);font-size:.85rem}
+td.actions{white-space:nowrap}
+.btn-sm{padding:4px 10px;border-radius:6px;border:1px solid var(--line);background:var(--card);
+  color:var(--text);cursor:pointer;font-size:.78rem;margin-right:4px}
+.btn-sm:hover{border-color:var(--accent)}
+.btn-del:hover{border-color:var(--red);color:var(--red)}
+.btn-add{padding:8px 18px;border-radius:8px;background:var(--accent);border:none;color:#0b1220;
+  font-weight:700;cursor:pointer;margin-bottom:16px;font-size:.88rem}
+
+/* —— 统计卡片 —— */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px}
+.stat-card .num{font-size:2rem;font-weight:900;color:var(--accent)}
+.stat-card .label{color:var(--muted);font-size:.85rem;margin-top:4px}
+
+/* —— 弹窗表单 —— */
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;z-index:100}
+.modal.on{display:flex}
+.modal-box{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:28px;width:440px;max-width:90vw}
+.modal-box h3{margin-bottom:20px}
+.field{margin-bottom:14px}
+.field label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px}
+.field input,.field textarea{width:100%;padding:8px 12px;background:var(--bg);border:1px solid var(--line);
+  border-radius:8px;color:var(--text);font-size:.85rem;outline:none}
+.field input:focus,.field textarea:focus{border-color:var(--accent)}
+.field textarea{min-height:60px;resize:vertical}
+.modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px}
+.btn-cancel{padding:8px 18px;border-radius:8px;border:1px solid var(--line);background:transparent;
+  color:var(--muted);cursor:pointer}
+.btn-save{padding:8px 18px;border-radius:8px;background:var(--accent);border:none;color:#0b1220;
+  font-weight:700;cursor:pointer}
+.unread{color:var(--accent);font-weight:700}
+</style>
+</head>
+<body>
+
+<!-- 登录页 -->
+<div id="login">
+  <div class="login-box">
+    <h1>管理后台</h1>
+    <input id="loginUser" placeholder="账号" value="admin">
+    <input id="loginPass" type="password" placeholder="密码" value="">
+    <button onclick="doLogin()">登录</button>
+    <div class="err" id="loginErr"></div>
+  </div>
+</div>
+
+<!-- 主界面 -->
+<div id="app">
+  <div class="topbar">
+    <h1>Nucleon 后台管理</h1>
+    <button class="btn-sm" onclick="logout()">退出</button>
+  </div>
+  <div class="tabs">
+    <div class="tab active" data-tab="news" onclick="switchTab('news')">动态</div>
+    <div class="tab" data-tab="projects" onclick="switchTab('projects')">项目</div>
+    <div class="tab" data-tab="links" onclick="switchTab('links')">友链</div>
+    <div class="tab" data-tab="messages" onclick="switchTab('messages')">留言</div>
+    <div class="tab" data-tab="stats" onclick="switchTab('stats')">统计</div>
+  </div>
+  <div class="content" id="content"></div>
+</div>
+
+<!-- 编辑弹窗 -->
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <h3 id="modalTitle">编辑</h3>
+    <div id="modalFields"></div>
+    <div class="modal-actions">
+      <button class="btn-cancel" onclick="closeModal()">取消</button>
+      <button class="btn-save" onclick="saveModal()">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+var API = '/api';
+var token = localStorage.getItem('nucleon_token') || '';
+var currentTab = 'news';
+var editId = null;
+
+/* —— 登录 —— */
+function doLogin() {
+  var u = document.getElementById('loginUser').value;
+  var p = document.getElementById('loginPass').value;
+  fetch(API + '/admin/login', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({username: u, password: p})
+  }).then(function(r) { return r.json(); }).then(function(d) {
+    if (d.token) {
+      token = d.token;
+      localStorage.setItem('nucleon_token', token);
+      showApp();
+    } else {
+      document.getElementById('loginErr').textContent = d.error || '登录失败';
+    }
+  });
+}
+
+function logout() {
+  token = '';
+  localStorage.removeItem('nucleon_token');
+  document.getElementById('app').classList.remove('on');
+  document.getElementById('login').style.display = 'flex';
+}
+
+function showApp() {
+  document.getElementById('login').style.display = 'none';
+  document.getElementById('app').classList.add('on');
+  switchTab('news');
+}
+
+function api(path, method, body) {
+  var opts = {method: method || 'GET', headers: {}};
+  if (token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (body) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+  return fetch(API + path, opts).then(function(r) { return r.json(); });
+}
+
+/* —— Tab 切换 —— */
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab').forEach(function(t) {
+    t.classList.toggle('active', t.dataset.tab === tab);
+  });
+  if (tab === 'news') loadNews();
+  else if (tab === 'projects') loadProjects();
+  else if (tab === 'links') loadLinks();
+  else if (tab === 'messages') loadMessages();
+  else if (tab === 'stats') loadStats();
+}
+
+/* —— 动态管理 —— */
+function loadNews() {
+  api('/admin/news').then(function(list) {
+    var h = '<button class="btn-add" onclick="openModal(\'news\')">+ 新增动态</button>';
+    h += '<table><tr><th>日期</th><th>标题</th><th>内容</th><th>操作</th></tr>';
+    list.forEach(function(n) {
+      h += '<tr><td>' + fmtDate(n.pub_date) + '</td><td>' + esc(n.title) + '</td><td>' + esc(n.content) +
+        '</td><td class="actions"><button class="btn-sm" onclick="openModal(\'news\',' + n.id + ')">编辑</button>' +
+        '<button class="btn-sm btn-del" onclick="del(\'news\',' + n.id + ')">删除</button></td></tr>';
+    });
+    h += '</table>';
+    document.getElementById('content').innerHTML = h;
+  });
+}
+
+/* —— 项目管理 —— */
+function loadProjects() {
+  api('/admin/projects').then(function(list) {
+    var h = '<button class="btn-add" onclick="openModal(\'projects\')">+ 新增项目</button>';
+    h += '<table><tr><th>排序</th><th>标题</th><th>链接</th><th>操作</th></tr>';
+    list.forEach(function(p) {
+      h += '<tr><td>' + p.sort_order + '</td><td>' + esc(p.title) + '</td><td>' + esc(p.link) +
+        '</td><td class="actions"><button class="btn-sm" onclick="openModal(\'projects\',' + p.id + ')">编辑</button>' +
+        '<button class="btn-sm btn-del" onclick="del(\'projects\',' + p.id + ')">删除</button></td></tr>';
+    });
+    h += '</table>';
+    document.getElementById('content').innerHTML = h;
+  });
+}
+
+/* —— 友链管理 —— */
+function loadLinks() {
+  api('/admin/links').then(function(list) {
+    var h = '<button class="btn-add" onclick="openModal(\'links\')">+ 新增友链</button>';
+    h += '<table><tr><th>排序</th><th>名称</th><th>网址</th><th>操作</th></tr>';
+    list.forEach(function(l) {
+      h += '<tr><td>' + l.sort_order + '</td><td>' + esc(l.name) + '</td><td>' + esc(l.url) +
+        '</td><td class="actions"><button class="btn-sm" onclick="openModal(\'links\',' + l.id + ')">编辑</button>' +
+        '<button class="btn-sm btn-del" onclick="del(\'links\',' + l.id + ')">删除</button></td></tr>';
+    });
+    h += '</table>';
+    document.getElementById('content').innerHTML = h;
+  });
+}
+
+/* —— 留言管理 —— */
+function loadMessages() {
+  api('/admin/messages').then(function(list) {
+    var h = '<table><tr><th>时间</th><th>姓名</th><th>邮箱</th><th>内容</th><th>状态</th><th>操作</th></tr>';
+    list.forEach(function(m) {
+      h += '<tr><td>' + fmtDate(m.created_at) + '</td><td>' + esc(m.name) + '</td><td>' + esc(m.email) +
+        '</td><td>' + esc(m.content) + '</td><td>' + (m.read ? '已读' : '<span class="unread">未读</span>') +
+        '</td><td class="actions">' + (m.read ? '' : '<button class="btn-sm" onclick="markRead(' + m.id + ')">标已读</button>') +
+        '<button class="btn-sm btn-del" onclick="del(\'messages\',' + m.id + ')">删除</button></td></tr>';
+    });
+    h += '</table>';
+    document.getElementById('content').innerHTML = h;
+  });
+}
+
+/* —— 访问统计 —— */
+function loadStats() {
+  api('/admin/stats').then(function(d) {
+    var h = '<div class="stats-row">' +
+      '<div class="stat-card"><div class="num">' + d.total_visits + '</div><div class="label">总访问量</div></div>' +
+      '<div class="stat-card"><div class="num">' + d.today_visits + '</div><div class="label">今日访问</div></div>' +
+      '<div class="stat-card"><div class="num">' + d.week_visits + '</div><div class="label">本周访问</div></div>' +
+      '<div class="stat-card"><div class="num">' + d.unread_messages + '</div><div class="label">未读留言</div></div>' +
+      '</div>';
+    if (d.daily && d.daily.length) {
+      h += '<h3 style="margin:16px 0 8px;font-size:.95rem">最近 7 天</h3><table><tr><th>日期</th><th>访问量</th></tr>';
+      d.daily.forEach(function(row) {
+        h += '<tr><td>' + row.date + '</td><td>' + row.count + '</td></tr>';
+      });
+      h += '</table>';
+    }
+    document.getElementById('content').innerHTML = h;
+  });
+}
+
+/* —— 弹窗表单 —— */
+var FIELDS = {
+  news: [
+    {key: 'title', label: '标题', type: 'input'},
+    {key: 'content', label: '内容', type: 'textarea'},
+    {key: 'pub_date', label: '日期', type: 'input', ph: '2026-08-01'},
+    {key: 'published', label: '发布', type: 'input', ph: 'true/false'}
+  ],
+  projects: [
+    {key: 'title', label: '标题', type: 'input'},
+    {key: 'description', label: '描述', type: 'textarea'},
+    {key: 'image', label: '图片路径', type: 'input', ph: 'pictures/projects/xxx.png'},
+    {key: 'link', label: '跳转链接', type: 'input'},
+    {key: 'tags', label: '标签（逗号分隔）', type: 'input'},
+    {key: 'sort_order', label: '排序', type: 'input', ph: '0'}
+  ],
+  links: [
+    {key: 'name', label: '名称', type: 'input'},
+    {key: 'avatar', label: '头像路径', type: 'input', ph: 'pictures/friends/xxx.jpg'},
+    {key: 'url', label: '网址', type: 'input'},
+    {key: 'sort_order', label: '排序', type: 'input', ph: '0'}
+  ]
+};
+
+function openModal(type, id) {
+  editId = id || null;
+  var title = id ? '编辑' : '新增';
+  var fields = FIELDS[type] || [];
+  if (id) {
+    api('/admin/' + type).then(function(list) {
+      var item = list.find(function(x) { return x.id === id; });
+      renderModal(title, type, fields, item);
+    });
+  } else {
+    renderModal(title, type, fields, {});
+  }
+}
+
+function renderModal(title, type, fields, data) {
+  document.getElementById('modalTitle').textContent = title;
+  var h = '';
+  fields.forEach(function(f) {
+    var val = data[f.key] || '';
+    if (f.key === 'pub_date' && val) val = val.substring(0, 10);
+    if (f.key === 'published' && typeof val === 'boolean') val = val ? 'true' : 'false';
+    h += '<div class="field"><label>' + f.label + '</label>';
+    if (f.type === 'textarea') {
+      h += '<textarea data-key="' + f.key + '">' + esc(val) + '</textarea>';
+    } else {
+      h += '<input data-key="' + f.key + '" value="' + esc(val) + '" placeholder="' + (f.ph || '') + '">';
+    }
+    h += '</div>';
+  });
+  document.getElementById('modalFields').innerHTML = h;
+  document.getElementById('modalFields').dataset.type = type;
+  document.getElementById('modal').classList.add('on');
+}
+
+function closeModal() {
+  document.getElementById('modal').classList.remove('on');
+}
+
+function saveModal() {
+  var type = document.getElementById('modalFields').dataset.type;
+  var body = {};
+  document.querySelectorAll('#modalFields [data-key]').forEach(function(el) {
+    var key = el.dataset.key;
+    var val = el.value;
+    if (key === 'sort_order') val = parseInt(val) || 0;
+    if (key === 'published') val = val === 'true';
+    body[key] = val;
+  });
+  var method = editId ? 'PUT' : 'POST';
+  var path = '/admin/' + type + (editId ? '/' + editId : '');
+  api(path, method, body).then(function() {
+    closeModal();
+    switchTab(currentTab);
+  });
+}
+
+function del(type, id) {
+  if (!confirm('确认删除？')) return;
+  api('/admin/' + type + '/' + id, 'DELETE').then(function() {
+    switchTab(currentTab);
+  });
+}
+
+function markRead(id) {
+  api('/admin/messages/' + id + '/read', 'PUT').then(function() {
+    switchTab('messages');
+  });
+}
+
+/* —— 工具函数 —— */
+function esc(s) { return (s || '').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function fmtDate(d) { return d ? new Date(d).toISOString().substring(0, 10) : ''; }
+
+/* —— 自动登录 —— */
+if (token) {
+  // 验证 Token 是否有效
+  api('/admin/news').then(function(d) {
+    if (d.error) { logout(); }
+    else { showApp(); }
+  }).catch(function() { logout(); });
+} else {
+  document.getElementById('loginPass').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') doLogin();
+  });
+}
+</script>
+</body>
+</html>

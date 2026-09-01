@@ -173,6 +173,7 @@
     { id: 'projects', label: '作品' },
     { id: 'news', label: '动态' },
     { id: 'about', label: '关于我' },
+    { id: 'links', label: '友链' },
     { id: 'social', label: '社交' }
   ];
 

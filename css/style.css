@@ -1,26 +1,33 @@
 /* =====================================================
    Nucleon · Smart Manufacturing — 全局设计系统
-   配色沿用 v1：深海军蓝底 + 天蓝 / 绿 强调
+   配色：深海军蓝底 + 冰蓝强调
+   ⚠ 修改配色只需改这里的 CSS 变量，全站自动生效
    ===================================================== */
 :root{
-  --bg:#0b1220;
-  --bg-soft:#0d1626;
-  --card:#101c33;
-  --card-2:#0c1728;
-  --line:#1e3a5f;
-  --line-soft:#152a47;
-  --text:#e6eef8;
-  --muted:#8aa0b8;
-  --accent:#38bdf8;
-  --accent-2:#4ade80;
-  --accent-3:#a78bfa;
-  --pink:#f472b6;
-  --amber:#fbbf24;
-  --red:#f87171;
+  /* —— 背景层级（深→浅）—— */
+  --bg:#0b1220;          /* 主背景 */
+  --bg-soft:#0d1626;     /* 次级背景 */
+  --card:#101c33;        /* 卡片背景 */
+  --card-2:#0c1728;      /* 卡片内层（搜索框等） */
+  /* —— 边框线条 —— */
+  --line:#1e3a5f;        /* 主边框 */
+  --line-soft:#152a47;   /* 次级边框（更淡） */
+  /* —— 文字 —— */
+  --text:#e6eef8;        /* 主文字 */
+  --muted:#8aa0b8;       /* 次要文字（灰蓝） */
+  /* —— 强调色（冰蓝渐变系）—— */
+  --accent:#38bdf8;      /* 主强调色（天蓝），按钮/链接/高亮 */
+  --accent-2:#7dd3fc;    /* 次强调色（亮冰蓝），渐变终点/统计数字 */
+  --accent-3:#a78bfa;    /* 第三色（紫，少量点缀） */
+  --pink:#f472b6;        /* 粉色（Furry 分类标签） */
+  --amber:#fbbf24;       /* 琥珀（艺术分类标签） */
+  --red:#f87171;         /* 红色（医学分类标签 / 炸板彩蛋） */
+  /* —— 渐变（标题字、按钮、进度线）—— */
   --grad:linear-gradient(90deg,var(--accent),var(--accent-2));
-  --radius:16px;
-  --shadow:0 12px 32px rgba(2,8,20,.45);
-  --header-h:64px;
+  /* —— 圆角 / 阴影 / 尺寸 —— */
+  --radius:16px;         /* 卡片圆角 */
+  --shadow:0 12px 32px rgba(2,8,20,.45); /* 卡片悬浮阴影 */
+  --header-h:96px;       /* 顶栏高度 */
   --font:"Segoe UI","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
 }
 *{margin:0;padding:0;box-sizing:border-box}
@@ -40,32 +47,32 @@ button{font-family:inherit;cursor:pointer;color:inherit}
 /* ---------- 头部 ---------- */
 .site-header{position:sticky;top:0;z-index:50;height:var(--header-h);background:rgba(11,18,32,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line-soft);transition:box-shadow .25s}
 .site-header.scrolled{box-shadow:0 6px 24px rgba(2,8,20,.5)}
-.header-in{height:var(--header-h);display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:22px}
-.brand{display:flex;align-items:center;gap:10px}
-.brand img{width:34px;height:34px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(56,189,248,.55))}
-.brand-text{display:flex;flex-direction:column;line-height:1.15}
-.brand-text b{font-size:1.05rem}
-.brand-text small{color:var(--muted);font-size:.68rem;letter-spacing:.14em}
-.nav{justify-self:center;display:flex;gap:26px}
-.nav a{color:var(--muted);font-size:.95rem;position:relative;padding:4px 0}
+.header-in{height:var(--header-h);display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:33px}
+.brand{display:flex;align-items:center;gap:18px}
+.brand img{width:66px;height:66px;object-fit:contain;filter:drop-shadow(0 0 6px rgba(56,189,248,.55))}
+.brand-text{display:flex;flex-direction:column;line-height:1.2}
+.brand-text b{font-size:2rem;letter-spacing:.08em}
+.brand-text small{color:var(--muted);font-size:1.35rem;letter-spacing:.05em}
+.nav{justify-self:center;display:flex;gap:39px}
+.nav a{color:var(--muted);font-size:1.3rem;font-weight:700;position:relative;padding:4px 0}
 .nav a::after{content:"";position:absolute;left:0;right:0;bottom:-2px;height:2px;border-radius:2px;background:var(--grad);transform:scaleX(0);transition:transform .25s}
 .nav a:hover{color:var(--text)}
 .nav a:hover::after{transform:scaleX(1)}
-.header-side{display:flex;align-items:center;gap:12px;justify-self:end}
+.header-side{display:flex;align-items:center;gap:18px;justify-self:end}
 .lang{position:relative}
-.lang-btn{width:34px;height:34px;border-radius:50%;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;transition:border-color .2s}
+.lang-btn{width:41px;height:41px;border-radius:50%;border:1px solid var(--line);background:var(--card);display:grid;place-items:center;transition:border-color .2s}
 .lang-btn:hover{border-color:var(--accent)}
-.lang-btn img{width:19px;height:19px}
-.lang-menu{position:absolute;right:0;top:calc(100% + 8px);min-width:110px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:6px;display:none;flex-direction:column;gap:2px}
+.lang-btn img{width:22px;height:22px}
+.lang-menu{position:absolute;right:0;top:calc(100% + 8px);min-width:88px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow);padding:5px;display:none;flex-direction:column;gap:2px}
 .lang-menu.open{display:flex}
-.lang-menu button{background:none;border:none;text-align:left;padding:8px 12px;border-radius:8px;color:var(--muted);font-size:.88rem}
+.lang-menu button{background:none;border:none;text-align:left;padding:6px 10px;border-radius:8px;color:var(--muted);font-size:.7rem}
 .lang-menu button:hover{background:var(--card-2);color:var(--text)}
 .lang-menu button.active{color:var(--accent)}
-.menu-btn{display:none;width:38px;height:38px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-size:17px}
+.menu-btn{display:none;width:57px;height:57px;border-radius:14px;border:1px solid var(--line);background:var(--card);font-size:25px}
 
 /* ---------- 通用区块 ---------- */
 .section{padding:88px 0;scroll-margin-top:calc(var(--header-h) + 8px)}
-.kicker{color:var(--accent);letter-spacing:.22em;font-size:.78rem;font-weight:700}
+.kicker{color:var(--accent);letter-spacing:.22em;font-size:.95rem;font-weight:700}
 .sec-head h2{font-size:clamp(1.5rem,3vw,2rem);margin:10px 0 8px}
 .sec-sub{color:var(--muted);max-width:640px}
 
@@ -125,4 +132,42 @@ footer{border-top:1px solid var(--line-soft);padding:28px 0;color:var(--muted);f
   .nav{position:fixed;left:0;right:0;top:var(--header-h);background:rgba(11,18,32,.97);backdrop-filter:blur(10px);flex-direction:column;padding:18px 24px;gap:14px;border-bottom:1px solid var(--line);transform:translateY(-130%);transition:transform .3s;z-index:49}
   .nav.open{transform:none}
   .menu-btn{display:block}
+}
+
+/* ---------- Konami 彩蛋：炸板模式 ---------- */
+.boom-overlay{position:fixed;inset:0;pointer-events:none;z-index:9999;overflow:hidden}
+.boom-flash{position:fixed;inset:0;background:rgba(248,113,113,.15);pointer-events:none;z-index:9998;animation:boomFlash .65s ease-out forwards}
+@keyframes boomFlash{0%{opacity:1}100%{opacity:0}}
+.boom-particle{position:fixed;bottom:-40px;font-size:1.5rem;font-weight:bold;pointer-events:none;
+  text-shadow:0 0 8px currentColor;animation:boomFloat var(--dur,3s) ease-out forwards;white-space:nowrap}
+@keyframes boomFloat{
+  0%{transform:translateY(0) translateX(0) rotate(0);opacity:1}
+  15%{opacity:1}
+  100%{transform:translateY(calc(-100vh - 80px)) translateX(var(--dx,0)) rotate(var(--rot,360deg));opacity:0}
+}
+
+/* ---------- 鼠标光晕跟随 ---------- */
+.cursor-glow{
+  position:fixed;width:320px;height:320px;border-radius:50%;
+  background:radial-gradient(circle,rgba(56,189,248,.10) 0%,rgba(56,189,248,.03) 45%,transparent 70%);
+  pointer-events:none;z-index:9997;transform:translate(-50%,-50%);
+  transition:opacity .3s;left:-400px;top:-400px;mix-blend-mode:screen;
+}
+
+/* ---------- 点击波纹涟漪 ---------- */
+.click-ripple{
+  position:fixed;border-radius:50%;border:2px solid rgba(56,189,248,.45);
+  pointer-events:none;z-index:9996;transform:translate(-50%,-50%);
+  animation:rippleExpand .55s ease-out forwards;
+}
+@keyframes rippleExpand{
+  0%{width:0;height:0;opacity:.8;border-width:2px}
+  100%{width:100px;height:100px;opacity:0;border-width:1px}
+}
+
+/* ---------- 页面滚动进度条 ---------- */
+.scroll-progress{
+  position:fixed;top:0;left:0;height:3px;width:0;
+  background:var(--grad);z-index:9995;pointer-events:none;
+  box-shadow:0 0 8px rgba(56,189,248,.5);transition:width .1s ease-out;
 }

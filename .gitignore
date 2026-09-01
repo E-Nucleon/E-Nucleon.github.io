@@ -11,3 +11,6 @@ desktop.ini
 # 临时
 *.tmp
 *.log
+# 本地推送工具
+push-github.bat
+push-github.ps1

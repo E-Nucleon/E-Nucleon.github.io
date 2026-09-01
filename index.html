@@ -155,19 +155,34 @@
         <h2>友链</h2>
         <p class="sec-sub">欢迎交换友链的朋友们的站点。</p>
       </div>
+      <!--
+        友链卡片模板：复制一个 .link-card 即可新增
+        - href="..."         目标网站地址
+        - data-rss="..."     该站的 RSS 订阅地址（没有就留空）
+        - <img src="...">    头像图片路径
+        - <b>...</b>         昵称
+        - <span>...</span>   短网址
+      -->
       <div class="links-grid reveal">
-        <a class="link-card" href="#" target="_blank" rel="noopener">
-          <div class="link-avatar"><img src="pictures/friends/placeholder.png" alt="好友头像"></div>
-          <div class="link-info"><b>好友昵称</b><span>example.com</span></div>
-        </a>
-        <a class="link-card" href="#" target="_blank" rel="noopener">
-          <div class="link-avatar"><img src="pictures/friends/placeholder.png" alt="好友头像"></div>
-          <div class="link-info"><b>好友昵称</b><span>example.com</span></div>
-        </a>
-        <a class="link-card" href="#" target="_blank" rel="noopener">
-          <div class="link-avatar"><img src="pictures/friends/placeholder.png" alt="好友头像"></div>
-          <div class="link-info"><b>好友昵称</b><span>example.com</span></div>
-        </a>
+        <div class="link-card" data-rss="https://www.owk.ink/rss.xml">
+          <a class="link-main" href="https://www.owk.ink" target="_blank" rel="noopener">
+            <div class="link-avatar"><img src="pictures/friends/errowk.png" alt="ErrOwk Blog 头像"></div>
+            <div class="link-info"><b>ErrOwk Blog</b><span>owk.ink</span></div>
+          </a>
+          <a class="link-rss" href="https://example.com/rss.xml" target="_blank" rel="noopener" title="订阅 RSS">RSS</a>
+        </div>
+        <div class="link-card" data-rss="">
+          <a class="link-main" href="https://example.com" target="_blank" rel="noopener">
+            <div class="link-avatar"><img src="pictures/friends/placeholder.png" alt="好友头像"></div>
+            <div class="link-info"><b>好友昵称</b><span>example.com</span></div>
+          </a>
+        </div>
+        <div class="link-card" data-rss="">
+          <a class="link-main" href="https://example.com" target="_blank" rel="noopener">
+            <div class="link-avatar"><img src="pictures/friends/placeholder.png" alt="好友头像"></div>
+            <div class="link-info"><b>好友昵称</b><span>example.com</span></div>
+          </a>
+        </div>
       </div>
     </section>
 

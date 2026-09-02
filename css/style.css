@@ -45,7 +45,7 @@ button{font-family:inherit;cursor:pointer;color:inherit}
 .hl{color:var(--accent)}
 
 /* ---------- 头部 ---------- */
-.site-header{position:sticky;top:0;z-index:50;height:var(--header-h);background:rgba(11,18,32,.82);backdrop-filter:blur(10px);border-bottom:1px solid var(--line-soft);transition:box-shadow .25s}
+.site-header{position:sticky;top:0;z-index:50;height:var(--header-h);background:rgba(11,18,32,.82);backdrop-filter:blur(10px);border-bottom:1 px solid var(--line-soft);transition:box-shadow .25s}
 .site-header.scrolled{box-shadow:0 6px 24px rgba(2,8,20,.5)}
 .header-in{height:var(--header-h);display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:33px}
 .brand{display:flex;align-items:center;gap:12px}

@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# The custom 404 page and the noindex project concept are omitted from sitemap.xml.
+Sitemap: https://www.nucleon.top/sitemap.xml
